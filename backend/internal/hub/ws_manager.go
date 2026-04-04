@@ -137,6 +137,20 @@ func (m *Manager) WithWriteChannel(write chan WriteToWs) {
 	m.write = write
 }
 
+// Broadcast sends payload to every currently connected client.
+// Non-blocking: clients with full buffers are skipped with a warning.
+func (m *Manager) Broadcast(payload []byte) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, client := range m.clients {
+		select {
+		case client.outbound <- payload:
+		default:
+			slog.Warn("Broadcast: client buffer full, skipping", "client_id", client.id)
+		}
+	}
+}
+
 func (m *Manager) Shutdown() {
 	m.shutdownOnce.Do(func() {
 		if m.cancel != nil {
