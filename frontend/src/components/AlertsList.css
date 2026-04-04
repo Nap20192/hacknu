@@ -1,0 +1,213 @@
+.alerts-container {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.alerts-header {
+  margin-bottom: 20px;
+}
+
+.alerts-header h2 {
+  margin: 0;
+  font-size: 24px;
+  color: #333;
+}
+
+.alerts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* States */
+.alerts-loading,
+.alerts-error,
+.alerts-empty {
+  padding: 40px 20px;
+  text-align: center;
+  font-size: 16px;
+  color: #666;
+  background: #f5f5f5;
+  border-radius: 8px;
+}
+
+.alerts-error {
+  background-color: #fee;
+  color: #c33;
+  border: 1px solid #fcc;
+}
+
+/* Alert Card */
+.alert-card {
+  background: white;
+  border-left: 4px solid #ffeb3b;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.alert-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.alert-card.severity-warning {
+  border-left-color: #ffb74d;
+  background-color: #fffaf0;
+}
+
+.alert-card.severity-critical {
+  border-left-color: #ef5350;
+  background-color: #ffebee;
+}
+
+/* Card Header */
+.alert-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.alert-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.alert-title h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.severity-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.severity-badge.warning {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.severity-badge.critical {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.alert-time {
+  font-size: 13px;
+  color: #999;
+}
+
+/* Card Body */
+.alert-body {
+  margin-bottom: 12px;
+}
+
+.alert-message {
+  margin: 0 0 8px 0;
+  font-size: 15px;
+  color: #333;
+  line-height: 1.4;
+}
+
+.alert-metric {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  background-color: rgba(0, 0, 0, 0.02);
+  border-radius: 4px;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.metric-label {
+  font-weight: 500;
+  color: #555;
+}
+
+.metric-value {
+  font-family: 'Courier New', monospace;
+  color: #d32f2f;
+  font-weight: 600;
+}
+
+.alert-recommendation {
+  padding: 8px 12px;
+  background-color: #f0f7ff;
+  border-left: 2px solid #2196f3;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #1565c0;
+}
+
+/* Card Footer */
+.alert-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.alert-loco {
+  font-size: 12px;
+  color: #999;
+}
+
+/* Button */
+.btn-acknowledge {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 4px;
+  background-color: #4caf50;
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-acknowledge:hover:not(:disabled) {
+  background-color: #45a049;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.btn-acknowledge:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .alerts-container {
+    padding: 12px;
+  }
+
+  .alert-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .alert-footer {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .btn-acknowledge {
+    width: 100%;
+    text-align: center;
+  }
+}

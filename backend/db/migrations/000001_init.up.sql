@@ -57,7 +57,7 @@ CREATE TABLE telemetry_events (
 -- sqlc:ignore
 DO $$
 BEGIN
-    PERFORM create_hypertable('telemetry_events', 'ts');
+    PERFORM create_hypertable('telemetry_events', 'ts', if_not_exists => TRUE);
 EXCEPTION
     WHEN undefined_function THEN
         RAISE NOTICE 'create_hypertable not available, skipping';
@@ -93,7 +93,7 @@ CREATE TABLE health_snapshots (
 -- sqlc:ignore
 DO $$
 BEGIN
-    PERFORM create_hypertable('health_snapshots', 'ts');
+    PERFORM create_hypertable('health_snapshots', 'ts', if_not_exists => TRUE);
 EXCEPTION
     WHEN undefined_function THEN
         RAISE NOTICE 'create_hypertable not available, skipping';

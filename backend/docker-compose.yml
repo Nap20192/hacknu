@@ -50,7 +50,7 @@ services:
   simulation:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: ./cmd/simulation/Dockerfile
     container_name: hacknu_simulation
     env_file:
       - .env
@@ -61,6 +61,21 @@ services:
       METRICS_CONFIG: ${METRICS_CONFIG}
       MIGRATIONS_PATH: ${MIGRATIONS_PATH}
       WS_URL: ${WS_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  alerts:
+    build:
+      context: .
+      dockerfile: ./cmd/alerts/Dockerfile
+    container_name: hacknu_alerts
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://loco:loco_secret@postgres:5432/loco_twin?sslmode=disable
+    ports:
+      - "8081:8080"
     depends_on:
       postgres:
         condition: service_healthy
