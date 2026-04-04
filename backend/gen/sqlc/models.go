@@ -6,33 +6,31 @@ package sqlc
 
 import (
 	"time"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Alert struct {
-	ID             int64         `json:"id"`
-	LocomotiveID   string        `json:"locomotive_id"`
-	TriggeredAt    time.Time     `json:"triggered_at"`
-	ResolvedAt     *time.Time    `json:"resolved_at"`
-	Severity       string        `json:"severity"`
-	Code           string        `json:"code"`
-	MetricName     *string       `json:"metric_name"`
-	MetricValue    pgtype.Float8 `json:"metric_value"`
-	Threshold      pgtype.Float8 `json:"threshold"`
-	Message        string        `json:"message"`
-	Recommendation string        `json:"recommendation"`
-	Acknowledged   bool          `json:"acknowledged"`
+	ID             int64      `json:"id"`
+	LocomotiveID   string     `json:"locomotive_id"`
+	TriggeredAt    time.Time  `json:"triggered_at"`
+	ResolvedAt     *time.Time `json:"resolved_at"`
+	Severity       string     `json:"severity"`
+	Code           string     `json:"code"`
+	MetricName     *string    `json:"metric_name"`
+	MetricValue    *float32   `json:"metric_value"`
+	Threshold      *float32   `json:"threshold"`
+	Message        string     `json:"message"`
+	Recommendation string     `json:"recommendation"`
+	Acknowledged   bool       `json:"acknowledged"`
 }
 
 type HealthSnapshot struct {
-	ID           pgtype.Int8 `json:"id"`
-	LocomotiveID string      `json:"locomotive_id"`
-	Ts           time.Time   `json:"ts"`
-	Score        int16       `json:"score"`
-	Category     string      `json:"category"`
-	Factors      []byte      `json:"factors"`
-	MetricsSnap  []byte      `json:"metrics_snap"`
+	ID           int64     `json:"id"`
+	LocomotiveID string    `json:"locomotive_id"`
+	Ts           time.Time `json:"ts"`
+	Score        int16     `json:"score"`
+	Category     string    `json:"category"`
+	Factors      []byte    `json:"factors"`
+	MetricsSnap  []byte    `json:"metrics_snap"`
 }
 
 type Locomotive struct {
@@ -45,28 +43,28 @@ type Locomotive struct {
 }
 
 type MetricDefinition struct {
-	Name         string        `json:"name"`
-	Display      string        `json:"display"`
-	Description  string        `json:"description"`
-	Unit         string        `json:"unit"`
-	PhysicalMin  pgtype.Float8 `json:"physical_min"`
-	PhysicalMax  pgtype.Float8 `json:"physical_max"`
-	NormalMin    pgtype.Float8 `json:"normal_min"`
-	NormalMax    pgtype.Float8 `json:"normal_max"`
-	WarnAbove    pgtype.Float8 `json:"warn_above"`
-	WarnBelow    pgtype.Float8 `json:"warn_below"`
-	CritAbove    pgtype.Float8 `json:"crit_above"`
-	CritBelow    pgtype.Float8 `json:"crit_below"`
-	HealthWeight float64       `json:"health_weight"`
-	EmaAlpha     float64       `json:"ema_alpha"`
-	DisplayOpts  []byte        `json:"display_opts"`
-	UpdatedAt    time.Time     `json:"updated_at"`
+	Name         string    `json:"name"`
+	Display      string    `json:"display"`
+	Description  string    `json:"description"`
+	Unit         string    `json:"unit"`
+	PhysicalMin  *float32  `json:"physical_min"`
+	PhysicalMax  *float32  `json:"physical_max"`
+	NormalMin    *float32  `json:"normal_min"`
+	NormalMax    *float32  `json:"normal_max"`
+	WarnAbove    *float32  `json:"warn_above"`
+	WarnBelow    *float32  `json:"warn_below"`
+	CritAbove    *float32  `json:"crit_above"`
+	CritBelow    *float32  `json:"crit_below"`
+	HealthWeight float32   `json:"health_weight"`
+	EmaAlpha     float32   `json:"ema_alpha"`
+	DisplayOpts  []byte    `json:"display_opts"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type TelemetryEvent struct {
-	ID           pgtype.Int8 `json:"id"`
-	LocomotiveID string      `json:"locomotive_id"`
-	Ts           time.Time   `json:"ts"`
-	Metrics      []byte      `json:"metrics"`
-	Raw          []byte      `json:"raw"`
+	ID           int64     `json:"id"`
+	LocomotiveID string    `json:"locomotive_id"`
+	Ts           time.Time `json:"ts"`
+	Metrics      []byte    `json:"metrics"`
+	Raw          []byte    `json:"raw"`
 }

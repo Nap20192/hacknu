@@ -7,8 +7,6 @@ package sqlc
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const deleteMetricDefinition = `-- name: DeleteMetricDefinition :execrows
@@ -207,21 +205,21 @@ RETURNING
 `
 
 type UpsertMetricDefinitionParams struct {
-	Name         string        `json:"name"`
-	Display      string        `json:"display"`
-	Description  string        `json:"description"`
-	Unit         string        `json:"unit"`
-	PhysicalMin  pgtype.Float8 `json:"physical_min"`
-	PhysicalMax  pgtype.Float8 `json:"physical_max"`
-	NormalMin    pgtype.Float8 `json:"normal_min"`
-	NormalMax    pgtype.Float8 `json:"normal_max"`
-	WarnAbove    pgtype.Float8 `json:"warn_above"`
-	WarnBelow    pgtype.Float8 `json:"warn_below"`
-	CritAbove    pgtype.Float8 `json:"crit_above"`
-	CritBelow    pgtype.Float8 `json:"crit_below"`
-	HealthWeight float64       `json:"health_weight"`
-	EmaAlpha     float64       `json:"ema_alpha"`
-	DisplayOpts  []byte        `json:"display_opts"`
+	Name         string   `json:"name"`
+	Display      string   `json:"display"`
+	Description  string   `json:"description"`
+	Unit         string   `json:"unit"`
+	PhysicalMin  *float32 `json:"physical_min"`
+	PhysicalMax  *float32 `json:"physical_max"`
+	NormalMin    *float32 `json:"normal_min"`
+	NormalMax    *float32 `json:"normal_max"`
+	WarnAbove    *float32 `json:"warn_above"`
+	WarnBelow    *float32 `json:"warn_below"`
+	CritAbove    *float32 `json:"crit_above"`
+	CritBelow    *float32 `json:"crit_below"`
+	HealthWeight float32  `json:"health_weight"`
+	EmaAlpha     float32  `json:"ema_alpha"`
+	DisplayOpts  []byte   `json:"display_opts"`
 }
 
 func (q *Queries) UpsertMetricDefinition(ctx context.Context, arg UpsertMetricDefinitionParams) (MetricDefinition, error) {
