@@ -8,6 +8,8 @@ package sqlc
 import (
 	"context"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const insertTelemetryEvent = `-- name: InsertTelemetryEvent :one
@@ -144,4 +146,19 @@ func (q *Queries) ListTelemetryByLocomotiveRange(ctx context.Context, arg ListTe
 		return nil, err
 	}
 	return items, nil
+}
+
+const purgeTelemetryOlderThan = `-- name: PurgeTelemetryOlderThan :execrows
+DELETE FROM telemetry_events
+WHERE ts < NOW() - $1::interval
+`
+
+// Удаляет записи телеметрии старше переданного интервала от текущего момента.
+// Пример: передай '24 hours' чтобы удалить всё старше суток.
+func (q *Queries) PurgeTelemetryOlderThan(ctx context.Context, dollar_1 pgtype.Interval) (int64, error) {
+	result, err := q.db.Exec(ctx, purgeTelemetryOlderThan, dollar_1)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

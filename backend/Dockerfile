@@ -15,8 +15,8 @@ COPY . .
 
 # Бинарники приложения
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -ldflags="-s -w" -o /bin/server    ./cmd/server    && \
-    go build -ldflags="-s -w" -o /bin/simulation ./cmd/simulation
+    go build -ldflags="-s -w" -o /bin/server    ./cmd/server     && \
+    go build -ldflags="-s -w" -o /bin/simulator ./cmd/simulation
 
 # golang-migrate CLI для запуска миграций
 RUN MIGRATE_VER=v4.18.1 && \

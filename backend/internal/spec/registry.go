@@ -31,11 +31,14 @@ func (r *RuleRegistry) Refresh(defs []sqlc.MetricDefinition) {
 	for _, d := range defs {
 		next[d.Name] = domain.MetricRule{
 			Name:         d.Name,
+			PhysicalMin:  d.PhysicalMin,
+			PhysicalMax:  d.PhysicalMax,
 			WarnAbove:    d.WarnAbove,
 			WarnBelow:    d.WarnBelow,
 			CritAbove:    d.CritAbove,
 			CritBelow:    d.CritBelow,
 			HealthWeight: d.HealthWeight,
+			EmaAlpha:     d.EmaAlpha,
 		}
 	}
 	r.mu.Lock()

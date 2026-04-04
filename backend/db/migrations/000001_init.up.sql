@@ -47,7 +47,7 @@ CREATE TABLE locomotives (
 -- metrics JSONB: {"speed_kmh": 45.2, "engine_temp_c": 87.1, ...}
 -- =============================================================
 CREATE TABLE telemetry_events (
-    id BIGSERIAL,
+    id BIGSERIAL NOT NULL,
     locomotive_id TEXT NOT NULL,
     ts TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     metrics JSONB NOT NULL DEFAULT '{}',
@@ -64,7 +64,9 @@ EXCEPTION
 END
 $$;
 
-CREATE UNIQUE INDEX idx_tel_id_ts ON telemetry_events (id, ts);
+-- TimescaleDB: уникальные индексы обязаны включать колонку партиционирования (ts)
+ALTER TABLE telemetry_events ADD PRIMARY KEY (id, ts);
+
 CREATE INDEX idx_tel_loco_ts ON telemetry_events (locomotive_id, ts DESC);
 
 CREATE INDEX idx_tel_metrics_gin ON telemetry_events USING GIN (metrics);
@@ -73,7 +75,7 @@ CREATE INDEX idx_tel_metrics_gin ON telemetry_events USING GIN (metrics);
 -- HEALTH SNAPSHOTS  (TimescaleDB hypertable)
 -- =============================================================
 CREATE TABLE health_snapshots (
-    id BIGSERIAL,
+    id BIGSERIAL NOT NULL,
     locomotive_id TEXT NOT NULL,
     ts TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     score SMALLINT NOT NULL CHECK (score BETWEEN 0 AND 100),
@@ -98,7 +100,8 @@ EXCEPTION
 END
 $$;
 
-CREATE UNIQUE INDEX idx_health_id_ts ON health_snapshots (id, ts);
+ALTER TABLE health_snapshots ADD PRIMARY KEY (id, ts);
+
 CREATE INDEX idx_health_loco_ts ON health_snapshots (locomotive_id, ts DESC);
 
 -- =============================================================
