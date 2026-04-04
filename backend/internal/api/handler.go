@@ -1,11 +1,9 @@
 package api
 
 import (
-	"net/http"
-
 	"github.com/Nap20192/hacknu/gen/sqlc"
 	"github.com/Nap20192/hacknu/internal/hub"
-	"github.com/gofiber/adaptor/v2"
+	fiberws "github.com/gofiber/websocket/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -19,7 +17,7 @@ import (
 //	@version		1.0
 //	@description	Real-time telemetry ingestion, health index, and diagnostic API for locomotive digital twin.
 //	@contact.name	HackNU Team
-//	@host			localhost:8080
+//	@host			localhost:8081
 //	@BasePath		/
 func NewApp(q *sqlc.Queries, h *hub.Manager) *fiber.App {
 	app := fiber.New(fiber.Config{
@@ -48,23 +46,14 @@ func NewApp(q *sqlc.Queries, h *hub.Manager) *fiber.App {
 	})
 
 	// ── Swagger UI ────────────────────────────────────────────────────────────
-	// Access at http://localhost:8080/swagger/index.html
-	// Generate docs: go run github.com/swaggo/swag/cmd/swag@latest init -g cmd/server/main.go
 	app.Get("/swagger/*", fiberSwagger.HandlerDefault)
 
 	// ── WebSocket telemetry ingest ────────────────────────────────────────────
-	// gorilla/websocket needs net/http — bridge via adaptor.
-	// Clients (simulator/device) connect here and send TelemetryBatchRequest JSON.
-	// HealthSnapshot JSON is broadcast back to all connected clients.
-	app.Get("/ws/telemetry", adaptor.HTTPHandlerFunc(wsHandler(h)))
+	// gofiber/websocket/v2 works natively with fasthttp — no adaptor needed.
+	app.Get("/ws/telemetry", fiberws.New(WSHandler(h)))
 
 	// ── REST routes ───────────────────────────────────────────────────────────
 	registerRoutes(app, q)
 
 	return app
-}
-
-// wsHandler wraps hub.ServeWS as a standard http.HandlerFunc.
-func wsHandler(h *hub.Manager) http.HandlerFunc {
-	return ServeWS(h)
 }

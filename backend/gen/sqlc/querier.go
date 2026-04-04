@@ -7,14 +7,15 @@ package sqlc
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
 	AcknowledgeAlert(ctx context.Context, id int64) (Alert, error)
 	DeleteMetricDefinition(ctx context.Context, name string) (int64, error)
-	GetLatestHealthSnapshot(ctx context.Context, locomotiveID string) (HealthSnapshot, error)
-	GetLocomotive(ctx context.Context, id string) (Locomotive, error)
+	GetLatestHealthSnapshot(ctx context.Context, locomotiveID uuid.UUID) (HealthSnapshot, error)
+	GetLocomotive(ctx context.Context, id uuid.UUID) (Locomotive, error)
 	GetMetricDefinition(ctx context.Context, name string) (MetricDefinition, error)
 	// ALERTS
 	InsertAlert(ctx context.Context, arg InsertAlertParams) (Alert, error)
@@ -22,7 +23,7 @@ type Querier interface {
 	InsertHealthSnapshot(ctx context.Context, arg InsertHealthSnapshotParams) (HealthSnapshot, error)
 	// TELEMETRY EVENTS
 	InsertTelemetryEvent(ctx context.Context, arg InsertTelemetryEventParams) (TelemetryEvent, error)
-	ListActiveAlertsByLocomotive(ctx context.Context, locomotiveID string) ([]Alert, error)
+	ListActiveAlertsByLocomotive(ctx context.Context, locomotiveID uuid.UUID) ([]Alert, error)
 	ListActiveLocomotives(ctx context.Context) ([]Locomotive, error)
 	ListAlertsByLocomotiveRange(ctx context.Context, arg ListAlertsByLocomotiveRangeParams) ([]Alert, error)
 	ListHealthSnapshotsLatest(ctx context.Context, arg ListHealthSnapshotsLatestParams) ([]HealthSnapshot, error)

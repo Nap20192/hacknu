@@ -100,6 +100,18 @@ overrides:
           type: "Time"
           pointer: true
 
+      # UUID
+      - db_type: "uuid"
+        go_type:
+          import: "github.com/google/uuid"
+          type: "UUID"
+      - db_type: "uuid"
+        nullable: true
+        go_type:
+          import: "github.com/google/uuid"
+          type: "UUID"
+          pointer: true
+
 
 sql:
   - engine: "postgresql"

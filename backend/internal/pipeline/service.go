@@ -11,12 +11,13 @@ import (
 	"github.com/Nap20192/hacknu/internal/domain"
 	"github.com/Nap20192/hacknu/internal/hub"
 	"github.com/Nap20192/hacknu/internal/spec"
+	"github.com/google/uuid"
 )
 
 // LocoUpdate — JSON-фрейм, который сервер отправляет дашборду по WebSocket.
 // Содержит и снапшот здоровья, и нормализованные метрики для обновления графиков.
 type LocoUpdate struct {
-	LocoID   string             `json:"loco_id"`
+	LocoID   uuid.UUID          `json:"loco_id"`
 	Ts       time.Time          `json:"ts"`
 	State    string             `json:"state"`
 	Score    int16              `json:"score"`
@@ -43,7 +44,7 @@ type AgregatorService struct {
 	hub           *hub.Manager
 	bufCap        int
 	flushInterval time.Duration
-	workers       map[string]*agregatorWorker
+	workers       map[uuid.UUID]*agregatorWorker
 	mu            sync.Mutex
 	wg            sync.WaitGroup
 }
@@ -63,7 +64,7 @@ func NewAgregatorService(
 		hub:           h,
 		bufCap:        bufCap,
 		flushInterval: flushInterval,
-		workers:       make(map[string]*agregatorWorker),
+		workers:       make(map[uuid.UUID]*agregatorWorker),
 	}
 }
 
@@ -81,19 +82,20 @@ func (s *AgregatorService) Run(ctx context.Context, readCh <-chan hub.ReadFromWs
 				s.shutdown()
 				return
 			}
-			s.ingest(msg.Payload)
+			s.ingest(msg)
 		}
 	}
 }
 
-// ingest разбирает сырой JSON и отправляет батч в нужный воркер.
-func (s *AgregatorService) ingest(raw []byte) {
+// ingest обрабатывает входящий фрейм: аутентификация или батч.
+func (s *AgregatorService) ingest(msg hub.ReadFromWs) {
+
 	var batch domain.TelemetryBatch
-	if err := json.Unmarshal(raw, &batch); err != nil {
+	if err := json.Unmarshal(msg.Payload, &batch); err != nil {
 		slog.Warn("aggregator: malformed batch", "err", err)
 		return
 	}
-	if batch.LocoID == "" || len(batch.Payload) == 0 {
+	if batch.LocoID == uuid.Nil || len(batch.Payload) == 0 {
 		slog.Debug("aggregator: empty batch, skipping")
 		return
 	}
@@ -101,7 +103,7 @@ func (s *AgregatorService) ingest(raw []byte) {
 		batch.TS = time.Now()
 	}
 
-	s.dispatch(batch, raw)
+	s.dispatch(batch, msg.Payload)
 }
 
 // dispatch маршрутизирует батч к воркеру loco_id.

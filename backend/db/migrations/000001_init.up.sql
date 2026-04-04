@@ -34,7 +34,7 @@ CREATE TABLE metric_definitions (
 -- LOCOMOTIVE REGISTRY
 -- =============================================================
 CREATE TABLE locomotives (
-    id TEXT PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     display_name TEXT NOT NULL,
     loco_type TEXT NOT NULL DEFAULT 'default',
     registered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -48,7 +48,7 @@ CREATE TABLE locomotives (
 -- =============================================================
 CREATE TABLE telemetry_events (
     id BIGSERIAL NOT NULL,
-    locomotive_id TEXT NOT NULL,
+    locomotive_id UUID NOT NULL,
     ts TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     metrics JSONB NOT NULL DEFAULT '{}',
     raw JSONB NOT NULL DEFAULT '{}'
@@ -76,7 +76,7 @@ CREATE INDEX idx_tel_metrics_gin ON telemetry_events USING GIN (metrics);
 -- =============================================================
 CREATE TABLE health_snapshots (
     id BIGSERIAL NOT NULL,
-    locomotive_id TEXT NOT NULL,
+    locomotive_id UUID NOT NULL,
     ts TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     score SMALLINT NOT NULL CHECK (score BETWEEN 0 AND 100),
     category TEXT NOT NULL CHECK (
@@ -109,7 +109,7 @@ CREATE INDEX idx_health_loco_ts ON health_snapshots (locomotive_id, ts DESC);
 -- =============================================================
 CREATE TABLE alerts (
     id BIGSERIAL PRIMARY KEY,
-    locomotive_id TEXT NOT NULL,
+    locomotive_id UUID NOT NULL,
     triggered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     resolved_at TIMESTAMPTZ,
     severity TEXT NOT NULL CHECK (

@@ -3,18 +3,11 @@ package hub
 import (
 	"context"
 	"log/slog"
-	"net/http"
 	"sync"
 
+	fiberws "github.com/gofiber/websocket/v2"
 	"github.com/google/uuid"
-	"github.com/gorilla/websocket"
 )
-
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin:     func(r *http.Request) bool { return true },
-}
 
 type Manager struct {
 	ctx          context.Context
@@ -33,8 +26,18 @@ func NewManager() *Manager {
 		clients: make(map[uuid.UUID]*Client),
 		wg:      sync.WaitGroup{},
 		read:    make(chan ReadFromWs),
+		write:   make(chan WriteToWs, 256),
 		ctx:     ctx,
 		cancel:  cancel,
+	}
+}
+
+// Write enqueues a message to be sent to a specific connected client.
+func (m *Manager) Write(consumerID uuid.UUID, payload []byte) {
+	select {
+	case m.write <- WriteToWs{Payload: payload, ConsumerID: consumerID}:
+	default:
+		slog.Warn("Manager.Write: write channel full", "consumer_id", consumerID)
 	}
 }
 
@@ -50,13 +53,8 @@ func (m *Manager) removeClient(c uuid.UUID) {
 	delete(m.clients, c)
 }
 
-func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		slog.Warn("WebSocket upgrade failed", "client_id", id.String(), "error", err)
-		return
-	}
-
+// ServeWS is called from the Fiber WebSocket handler with an already-upgraded conn.
+func (m *Manager) ServeWS(conn *fiberws.Conn, id uuid.UUID) {
 	slog.Info("WebSocket connection established", "client_id", id.String())
 
 	client := NewClient(id, conn, m)
@@ -122,7 +120,7 @@ func (m *Manager) StartWrite(ctx context.Context) {
 						slog.Warn("Client outbound channel full", "client_id", message.ConsumerID)
 					}
 				} else {
-					slog.Warn("Client not found for message", "client_id", message.ConsumerID, "message", string(message.Payload))
+					slog.Warn("Client not found for message", "client_id", message.ConsumerID)
 				}
 			}
 		}
@@ -138,7 +136,6 @@ func (m *Manager) WithWriteChannel(write chan WriteToWs) {
 }
 
 // Broadcast sends payload to every currently connected client.
-// Non-blocking: clients with full buffers are skipped with a warning.
 func (m *Manager) Broadcast(payload []byte) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

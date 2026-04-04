@@ -1,18 +1,16 @@
 package api
 
 import (
-	"net/http"
-
 	"github.com/Nap20192/hacknu/internal/hub"
 	"github.com/Nap20192/hacknu/internal/spec"
+	fiberws "github.com/gofiber/websocket/v2"
 	"github.com/google/uuid"
 )
 
-// ServeWS upgrades an HTTP connection to WebSocket and registers it with the hub.
-// gorilla/websocket requires net/http — mounted via gofiber/adaptor in handler.go.
-func ServeWS(h *hub.Manager) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		h.ServeWS(w, r, uuid.New())
+// WSHandler returns a Fiber WebSocket handler that registers the upgraded conn with the hub.
+func WSHandler(h *hub.Manager) func(*fiberws.Conn) {
+	return func(c *fiberws.Conn) {
+		h.ServeWS(c, uuid.New())
 	}
 }
 

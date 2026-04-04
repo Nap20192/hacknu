@@ -9,6 +9,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -31,7 +32,7 @@ RETURNING
 `
 
 type InsertTelemetryEventParams struct {
-	LocomotiveID string    `json:"locomotive_id"`
+	LocomotiveID uuid.UUID `json:"locomotive_id"`
 	Ts           time.Time `json:"ts"`
 	Metrics      []byte    `json:"metrics"`
 	Raw          []byte    `json:"raw"`
@@ -71,8 +72,8 @@ LIMIT $2
 `
 
 type ListTelemetryByLocomotiveLatestParams struct {
-	LocomotiveID string `json:"locomotive_id"`
-	Limit        int32  `json:"limit"`
+	LocomotiveID uuid.UUID `json:"locomotive_id"`
+	Limit        int32     `json:"limit"`
 }
 
 func (q *Queries) ListTelemetryByLocomotiveLatest(ctx context.Context, arg ListTelemetryByLocomotiveLatestParams) ([]TelemetryEvent, error) {
@@ -117,7 +118,7 @@ ORDER BY ts ASC
 `
 
 type ListTelemetryByLocomotiveRangeParams struct {
-	LocomotiveID string    `json:"locomotive_id"`
+	LocomotiveID uuid.UUID `json:"locomotive_id"`
 	Ts           time.Time `json:"ts"`
 	Ts_2         time.Time `json:"ts_2"`
 }

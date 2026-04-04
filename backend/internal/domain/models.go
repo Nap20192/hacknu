@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type Metric struct {
 	Name  string  `json:"n"`
@@ -8,7 +12,7 @@ type Metric struct {
 }
 
 type TelemetryBatch struct {
-	LocoID  string    `json:"loco_id"`
+	LocoID  uuid.UUID `json:"loco_id"`
 	TS      time.Time `json:"ts"`
 	Payload []Metric  `json:"payload"`
 }
@@ -41,6 +45,7 @@ type Issue struct {
 	Level        IssueLevel
 	Target       string  // metric name that triggered the issue
 	Message      string  // human-readable description for logs / UI
+	IssueWeight float32
 	HealthWeight float32 // copied from MetricRule; used for cumulative Degraded calc
 }
 

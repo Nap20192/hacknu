@@ -8,6 +8,8 @@ package sqlc
 import (
 	"context"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 const acknowledgeAlert = `-- name: AcknowledgeAlert :one
@@ -90,14 +92,14 @@ RETURNING
 `
 
 type InsertAlertParams struct {
-	LocomotiveID   string   `json:"locomotive_id"`
-	Severity       string   `json:"severity"`
-	Code           string   `json:"code"`
-	MetricName     *string  `json:"metric_name"`
-	MetricValue    *float32 `json:"metric_value"`
-	Threshold      *float32 `json:"threshold"`
-	Message        string   `json:"message"`
-	Recommendation string   `json:"recommendation"`
+	LocomotiveID   uuid.UUID `json:"locomotive_id"`
+	Severity       string    `json:"severity"`
+	Code           string    `json:"code"`
+	MetricName     *string   `json:"metric_name"`
+	MetricValue    *float32  `json:"metric_value"`
+	Threshold      *float32  `json:"threshold"`
+	Message        string    `json:"message"`
+	Recommendation string    `json:"recommendation"`
 }
 
 // ALERTS
@@ -151,7 +153,7 @@ WHERE
 ORDER BY triggered_at DESC
 `
 
-func (q *Queries) ListActiveAlertsByLocomotive(ctx context.Context, locomotiveID string) ([]Alert, error) {
+func (q *Queries) ListActiveAlertsByLocomotive(ctx context.Context, locomotiveID uuid.UUID) ([]Alert, error) {
 	rows, err := q.db.Query(ctx, listActiveAlertsByLocomotive, locomotiveID)
 	if err != nil {
 		return nil, err
@@ -207,7 +209,7 @@ ORDER BY triggered_at DESC
 `
 
 type ListAlertsByLocomotiveRangeParams struct {
-	LocomotiveID  string    `json:"locomotive_id"`
+	LocomotiveID  uuid.UUID `json:"locomotive_id"`
 	TriggeredAt   time.Time `json:"triggered_at"`
 	TriggeredAt_2 time.Time `json:"triggered_at_2"`
 }

@@ -6,11 +6,13 @@ package sqlc
 
 import (
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Alert struct {
 	ID             int64      `json:"id"`
-	LocomotiveID   string     `json:"locomotive_id"`
+	LocomotiveID   uuid.UUID  `json:"locomotive_id"`
 	TriggeredAt    time.Time  `json:"triggered_at"`
 	ResolvedAt     *time.Time `json:"resolved_at"`
 	Severity       string     `json:"severity"`
@@ -25,7 +27,7 @@ type Alert struct {
 
 type HealthSnapshot struct {
 	ID           int64     `json:"id"`
-	LocomotiveID string    `json:"locomotive_id"`
+	LocomotiveID uuid.UUID `json:"locomotive_id"`
 	Ts           time.Time `json:"ts"`
 	Score        int16     `json:"score"`
 	Category     string    `json:"category"`
@@ -34,7 +36,7 @@ type HealthSnapshot struct {
 }
 
 type Locomotive struct {
-	ID           string     `json:"id"`
+	ID           uuid.UUID  `json:"id"`
 	DisplayName  string     `json:"display_name"`
 	LocoType     string     `json:"loco_type"`
 	RegisteredAt time.Time  `json:"registered_at"`
@@ -63,7 +65,7 @@ type MetricDefinition struct {
 
 type TelemetryEvent struct {
 	ID           int64     `json:"id"`
-	LocomotiveID string    `json:"locomotive_id"`
+	LocomotiveID uuid.UUID `json:"locomotive_id"`
 	Ts           time.Time `json:"ts"`
 	Metrics      []byte    `json:"metrics"`
 	Raw          []byte    `json:"raw"`

@@ -5,6 +5,7 @@ import (
 
 	"github.com/Nap20192/hacknu/gen/sqlc"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 )
 
 // registerRoutes mounts all REST routes on the Fiber app.
@@ -41,6 +42,14 @@ func registerRoutes(app *fiber.App, q *sqlc.Queries) {
 //	@Success		200	{object}	PagedResponse[LocomotiveDTO]
 //	@Failure		500	{object}	Response[any]
 //	@Router			/api/v1/locomotives [get]
+func parseLocoID(c *fiber.Ctx) (uuid.UUID, error) {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return uuid.Nil, fiber.NewError(400, "invalid locomotive id: must be a UUID")
+	}
+	return id, nil
+}
+
 func listLocomotives(q *sqlc.Queries) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		rows, err := q.ListLocomotives(c.Context())
@@ -67,7 +76,11 @@ func listLocomotives(q *sqlc.Queries) fiber.Handler {
 //	@Router			/api/v1/locomotives/{id} [get]
 func getLocomotive(q *sqlc.Queries) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		row, err := q.GetLocomotive(c.Context(), c.Params("id"))
+		id, err := parseLocoID(c)
+		if err != nil {
+			return c.Status(400).JSON(Response[any]{Error: err.Error()})
+		}
+		row, err := q.GetLocomotive(c.Context(), id)
 		if err != nil {
 			return c.Status(404).JSON(Response[any]{Error: "locomotive not found"})
 		}
@@ -88,7 +101,11 @@ func getLocomotive(q *sqlc.Queries) fiber.Handler {
 //	@Router			/api/v1/locomotives/{id}/health [get]
 func getLatestHealth(q *sqlc.Queries) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		snap, err := q.GetLatestHealthSnapshot(c.Context(), c.Params("id"))
+		id, err := parseLocoID(c)
+		if err != nil {
+			return c.Status(400).JSON(Response[any]{Error: err.Error()})
+		}
+		snap, err := q.GetLatestHealthSnapshot(c.Context(), id)
 		if err != nil {
 			return c.Status(404).JSON(Response[any]{Error: "no health data found"})
 		}
@@ -115,9 +132,13 @@ func listHealthHistory(q *sqlc.Queries) fiber.Handler {
 		if err != nil {
 			return c.Status(400).JSON(Response[any]{Error: err.Error()})
 		}
+		id, err := parseLocoID(c)
+		if err != nil {
+			return c.Status(400).JSON(Response[any]{Error: err.Error()})
+		}
 		if limit > 0 {
 			rows, err := q.ListHealthSnapshotsLatest(c.Context(), sqlc.ListHealthSnapshotsLatestParams{
-				LocomotiveID: c.Params("id"),
+				LocomotiveID: id,
 				Limit:        limit,
 			})
 			if err != nil {
@@ -126,7 +147,7 @@ func listHealthHistory(q *sqlc.Queries) fiber.Handler {
 			return c.JSON(PagedResponse[sqlc.HealthSnapshot]{Success: true, Data: rows, Total: len(rows)})
 		}
 		rows, err := q.ListHealthSnapshotsRange(c.Context(), sqlc.ListHealthSnapshotsRangeParams{
-			LocomotiveID: c.Params("id"),
+			LocomotiveID: id,
 			Ts:           from,
 			Ts_2:         to,
 		})
@@ -150,7 +171,11 @@ func listHealthHistory(q *sqlc.Queries) fiber.Handler {
 //	@Router			/api/v1/locomotives/{id}/alerts [get]
 func listActiveAlerts(q *sqlc.Queries) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		rows, err := q.ListActiveAlertsByLocomotive(c.Context(), c.Params("id"))
+		id, err := parseLocoID(c)
+		if err != nil {
+			return c.Status(400).JSON(Response[any]{Error: err.Error()})
+		}
+		rows, err := q.ListActiveAlertsByLocomotive(c.Context(), id)
 		if err != nil {
 			return c.Status(500).JSON(Response[any]{Error: err.Error()})
 		}
@@ -176,12 +201,16 @@ func listActiveAlerts(q *sqlc.Queries) fiber.Handler {
 //	@Router			/api/v1/locomotives/{id}/alerts/history [get]
 func listAlertsHistory(q *sqlc.Queries) fiber.Handler {
 	return func(c *fiber.Ctx) error {
+		id, err := parseLocoID(c)
+		if err != nil {
+			return c.Status(400).JSON(Response[any]{Error: err.Error()})
+		}
 		from, to, _, err := parseTimeRange(c)
 		if err != nil {
 			return c.Status(400).JSON(Response[any]{Error: err.Error()})
 		}
 		rows, err := q.ListAlertsByLocomotiveRange(c.Context(), sqlc.ListAlertsByLocomotiveRangeParams{
-			LocomotiveID:  c.Params("id"),
+			LocomotiveID:  id,
 			TriggeredAt:   from,
 			TriggeredAt_2: to,
 		})
