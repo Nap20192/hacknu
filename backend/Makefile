@@ -1,4 +1,8 @@
-DB_URL ?= postgres://loco:loco_secret@localhost:5432/loco_twin?sslmode=disable
+# Загружаем .env если есть
+-include .env
+export
+
+DB_URL ?= $(DATABASE_URL)
 
 .PHONY: generate migrate-up migrate-down migrate-drop run build
 
