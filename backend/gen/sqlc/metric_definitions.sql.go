@@ -7,6 +7,8 @@ package sqlc
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const deleteMetricDefinition = `-- name: DeleteMetricDefinition :execrows
@@ -119,6 +121,158 @@ func (q *Queries) ListMetricDefinitions(ctx context.Context) ([]MetricDefinition
 			&i.DisplayOpts,
 			&i.UpdatedAt,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const recalculateEmaAlpha = `-- name: RecalculateEmaAlpha :many
+WITH ranges AS (
+    SELECT
+        name,
+        health_weight,
+        NULLIF(physical_max - physical_min, 0)              AS phys_range,
+        NULLIF(
+            COALESCE(warn_above, crit_above, physical_max)
+            - COALESCE(warn_below, crit_below, physical_min),
+            0
+        )                                                   AS warn_band
+    FROM metric_definitions
+),
+alpha_calc AS (
+    SELECT
+        name,
+        GREATEST(0.05, LEAST(0.90,
+            CASE
+                WHEN phys_range IS NOT NULL AND warn_band IS NOT NULL
+                THEN 2.0 / (phys_range / warn_band + 1.0)
+                     * (1.0 - health_weight * 0.3)
+                ELSE 0.30
+            END
+        ))                                                  AS new_alpha
+    FROM ranges
+)
+UPDATE metric_definitions md
+SET
+    ema_alpha  = ROUND(alpha_calc.new_alpha::numeric, 3),
+    updated_at = NOW()
+FROM alpha_calc
+WHERE md.name = alpha_calc.name
+RETURNING
+    md.name,
+    md.display,
+    md.description,
+    md.unit,
+    md.physical_min,
+    md.physical_max,
+    md.normal_min,
+    md.normal_max,
+    md.warn_above,
+    md.warn_below,
+    md.crit_above,
+    md.crit_below,
+    md.health_weight,
+    md.ema_alpha,
+    md.display_opts,
+    md.updated_at
+`
+
+// Пересчитывает ema_alpha для всех метрик на основе их физических диапазонов,
+// предупредительных порогов и health_weight. Возвращает обновлённые строки.
+func (q *Queries) RecalculateEmaAlpha(ctx context.Context) ([]MetricDefinition, error) {
+	rows, err := q.db.Query(ctx, recalculateEmaAlpha)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []MetricDefinition{}
+	for rows.Next() {
+		var i MetricDefinition
+		if err := rows.Scan(
+			&i.Name,
+			&i.Display,
+			&i.Description,
+			&i.Unit,
+			&i.PhysicalMin,
+			&i.PhysicalMax,
+			&i.NormalMin,
+			&i.NormalMax,
+			&i.WarnAbove,
+			&i.WarnBelow,
+			&i.CritAbove,
+			&i.CritBelow,
+			&i.HealthWeight,
+			&i.EmaAlpha,
+			&i.DisplayOpts,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const recalculateEmaAlphaPreview = `-- name: RecalculateEmaAlphaPreview :many
+SELECT
+    name,
+    ema_alpha                                              AS current_alpha,
+    ROUND(
+        GREATEST(0.05, LEAST(0.90,
+            CASE
+                WHEN NULLIF(physical_max - physical_min, 0) IS NOT NULL
+                 AND NULLIF(
+                         COALESCE(warn_above, crit_above, physical_max)
+                         - COALESCE(warn_below, crit_below, physical_min),
+                         0
+                     ) IS NOT NULL
+                THEN
+                    2.0 / (
+                        NULLIF(physical_max - physical_min, 0)
+                        / NULLIF(
+                            COALESCE(warn_above, crit_above, physical_max)
+                            - COALESCE(warn_below, crit_below, physical_min),
+                            0
+                          )
+                        + 1.0
+                    ) * (1.0 - health_weight * 0.3)
+                ELSE 0.30
+            END
+        ))::numeric,
+        3
+    )                                                      AS new_alpha
+FROM metric_definitions
+ORDER BY name
+`
+
+type RecalculateEmaAlphaPreviewRow struct {
+	Name         string         `json:"name"`
+	CurrentAlpha float32        `json:"current_alpha"`
+	NewAlpha     pgtype.Numeric `json:"new_alpha"`
+}
+
+// Dry-run: показывает текущий и пересчитанный alpha без изменений в БД.
+// N = phys_range / warn_band — эквивалентный период EMA.
+// alpha = 2 / (N + 1) — стандартная конвертация периода в коэффициент сглаживания.
+// Поправка health_weight: критичные метрики сглаживаются сильнее.
+func (q *Queries) RecalculateEmaAlphaPreview(ctx context.Context) ([]RecalculateEmaAlphaPreviewRow, error) {
+	rows, err := q.db.Query(ctx, recalculateEmaAlphaPreview)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RecalculateEmaAlphaPreviewRow{}
+	for rows.Next() {
+		var i RecalculateEmaAlphaPreviewRow
+		if err := rows.Scan(&i.Name, &i.CurrentAlpha, &i.NewAlpha); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

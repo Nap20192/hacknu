@@ -18,12 +18,13 @@ import (
 	"syscall"
 	"time"
 
-	_ "github.com/Nap20192/hacknu/docs" // swagger generated docs
+	_ "github.com/Nap20192/hacknu/docs"
 
 	"github.com/Nap20192/hacknu/gen/sqlc"
 	"github.com/Nap20192/hacknu/internal/api"
 	"github.com/Nap20192/hacknu/internal/config"
 	"github.com/Nap20192/hacknu/internal/hub"
+	"github.com/Nap20192/hacknu/internal/pipeline"
 	"github.com/Nap20192/hacknu/internal/spec"
 	"github.com/Nap20192/hacknu/pkg/logger"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -56,12 +57,11 @@ func main() {
 
 	queries := sqlc.New(pool)
 
-	// ── Rule Registry: load from DB, refresh every 60 s ──────────────────────
+	// ── Rule Registry ─────────────────────────────────────────────────────────
 	registry := spec.NewRuleRegistry()
 	if err := refreshRegistry(context.Background(), queries, registry); err != nil {
 		slog.Warn("initial rule registry load failed", "err", err)
 	}
-
 	go func() {
 		ticker := time.NewTicker(60 * time.Second)
 		defer ticker.Stop()
@@ -79,11 +79,15 @@ func main() {
 	wsHub := hub.NewManager()
 	wsHub.StartWrite(context.Background())
 
-	// ── Telemetry Processor ───────────────────────────────────────────────────
-	// Reads raw frames from the hub, runs them through the Engine,
-	// and broadcasts HealthSnapshot JSON back to all clients.
-	processor := api.NewTelemetryProcessor(wsHub, engine)
-	go processor.Run()
+	// ── Aggregator Service ────────────────────────────────────────────────────
+	// Читает сырые фреймы из hub, маршрутизирует по loco_id к воркерам.
+	// Каждый воркер: validate → deduplicate → buffer → EMA → engine → persist+broadcast.
+	aggregator := pipeline.NewAgregatorService(queries, registry, engine, wsHub, cfg.BufferCap, cfg.FlushInterval)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go aggregator.Run(ctx, wsHub.ReadChannel())
 
 	// ── Fiber App ─────────────────────────────────────────────────────────────
 	app := api.NewApp(queries, wsHub)
@@ -102,8 +106,10 @@ func main() {
 	<-quit
 	slog.Info("shutting down...")
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	cancel() // останавливаем aggregator
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
 
 	if err := app.ShutdownWithContext(shutdownCtx); err != nil {
 		slog.Error("shutdown error", "err", err)

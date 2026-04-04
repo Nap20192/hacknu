@@ -47,9 +47,12 @@ type Issue struct {
 // MetricRule mirrors the thresholds stored in the metric_definitions table.
 type MetricRule struct {
 	Name         string
+	PhysicalMin  *float32 // hard lower bound — values below are physically impossible
+	PhysicalMax  *float32 // hard upper bound — values above are physically impossible
 	WarnAbove    *float32
 	WarnBelow    *float32
 	CritAbove    *float32
 	CritBelow    *float32
 	HealthWeight float32
+	EmaAlpha     float32 // smoothing factor α ∈ (0,1]; higher = less smoothing
 }

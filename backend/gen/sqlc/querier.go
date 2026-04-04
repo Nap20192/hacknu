@@ -6,6 +6,8 @@ package sqlc
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
@@ -31,6 +33,17 @@ type Querier interface {
 	ListMetricDefinitions(ctx context.Context) ([]MetricDefinition, error)
 	ListTelemetryByLocomotiveLatest(ctx context.Context, arg ListTelemetryByLocomotiveLatestParams) ([]TelemetryEvent, error)
 	ListTelemetryByLocomotiveRange(ctx context.Context, arg ListTelemetryByLocomotiveRangeParams) ([]TelemetryEvent, error)
+	// Удаляет записи телеметрии старше переданного интервала от текущего момента.
+	// Пример: передай '24 hours' чтобы удалить всё старше суток.
+	PurgeTelemetryOlderThan(ctx context.Context, dollar_1 pgtype.Interval) (int64, error)
+	// Пересчитывает ema_alpha для всех метрик на основе их физических диапазонов,
+	// предупредительных порогов и health_weight. Возвращает обновлённые строки.
+	RecalculateEmaAlpha(ctx context.Context) ([]MetricDefinition, error)
+	// Dry-run: показывает текущий и пересчитанный alpha без изменений в БД.
+	// N = phys_range / warn_band — эквивалентный период EMA.
+	// alpha = 2 / (N + 1) — стандартная конвертация периода в коэффициент сглаживания.
+	// Поправка health_weight: критичные метрики сглаживаются сильнее.
+	RecalculateEmaAlphaPreview(ctx context.Context) ([]RecalculateEmaAlphaPreviewRow, error)
 	ResolveAlertNow(ctx context.Context, id int64) (Alert, error)
 	SetLocomotiveActive(ctx context.Context, arg SetLocomotiveActiveParams) (Locomotive, error)
 	UpdateLocomotiveLastSeen(ctx context.Context, arg UpdateLocomotiveLastSeenParams) (Locomotive, error)
