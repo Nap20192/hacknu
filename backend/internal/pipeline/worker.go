@@ -198,19 +198,85 @@ func (w *agregatorWorker) persist(batch domain.TelemetryBatch, snap spec.HealthS
 		slog.Warn("aggregator: insert telemetry_event failed", "loco_id", w.locoID, "err", err)
 	}
 
+	// Keep last_seen_at fresh for the locomotive registry.
+	now := batch.TS
+	if _, err := w.queries.UpdateLocomotiveLastSeen(ctx, sqlc.UpdateLocomotiveLastSeenParams{
+		ID:         batch.LocoID,
+		LastSeenAt: &now,
+	}); err != nil {
+		slog.Debug("aggregator: update last_seen_at failed", "loco_id", w.locoID, "err", err)
+	}
+
 	factorsJSON, _ := json.Marshal(snap.Issues)
 	if _, err := w.queries.InsertHealthSnapshot(ctx, sqlc.InsertHealthSnapshotParams{
 		LocomotiveID: snap.LocoID,
 		Ts:           snap.Ts,
 		Score:        snap.Score,
-		Category:     snap.State.String(),
+		Category:     stateToDBCategory(snap.State),
 		Factors:      factorsJSON,
 		MetricsSnap:  metricsJSON,
 	}); err != nil {
 		slog.Warn("aggregator: insert health_snapshot failed", "loco_id", w.locoID, "err", err)
 	}
+
+	// Persist critical/warning issues as alerts for the UI.
+	for i := range snap.Issues {
+		iss := &snap.Issues[i]
+		if iss.Level == domain.LevelInfo {
+			continue
+		}
+		severity := "warning"
+		if iss.Level == domain.LevelCritical {
+			severity = "critical"
+		}
+		metricName := iss.Target
+		if _, err := w.queries.InsertAlert(ctx, sqlc.InsertAlertParams{
+			LocomotiveID:   snap.LocoID,
+			Severity:       severity,
+			Code:           iss.Code,
+			MetricName:     &metricName,
+			Message:        iss.Message,
+			Recommendation: alertRecommendation(iss.Code),
+		}); err != nil {
+			slog.Debug("aggregator: insert alert failed (may already exist)", "code", iss.Code, "err", err)
+		}
+	}
+}
+
+func alertRecommendation(code string) string {
+	switch code {
+	case "CRIT_ABOVE_ENGINE_TEMP":
+		return "Снизить скорость, проверить систему охлаждения"
+	case "CRIT_BELOW_BRAKE_PRESSURE":
+		return "Немедленная остановка, проверить тормозную систему"
+	case "WARN_BELOW_FUEL_LEVEL", "CRIT_BELOW_FUEL_LEVEL":
+		return "Запланировать заправку на ближайшей станции"
+	case "CRIT_BELOW_OIL_PRESSURE":
+		return "Остановить двигатель, проверить уровень масла"
+	case "WARN_ABOVE_VOLTAGE", "CRIT_ABOVE_VOLTAGE":
+		return "Проверить генераторы и регуляторы напряжения"
+	case "WARN_ABOVE_TRACTION", "CRIT_ABOVE_TRACTION":
+		return "Снизить тяговое усилие"
+	case "WARN_ABOVE_AXLE_TEMP", "CRIT_ABOVE_AXLE_TEMP":
+		return "Снизить скорость, проверить буксовые узлы"
+	default:
+		return ""
+	}
 }
 
 func (w *agregatorWorker) stop() {
 	close(w.done)
+}
+
+// stateToDBCategory maps LocoState to the DB category constraint values.
+// health_snapshots.category CHECK: ('normal', 'warning', 'critical')
+func stateToDBCategory(s spec.LocoState) string {
+	switch s {
+	case spec.StateEmergency:
+		return "critical"
+	case spec.StateDegraded:
+		return "warning"
+	default:
+		return "normal"
+	}
 }

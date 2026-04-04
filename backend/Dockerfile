@@ -1,7 +1,7 @@
 # =============================================================
 # Stage 1 — builder
 # =============================================================
-FROM golang:1.26.1-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 RUN apk add --no-cache git ca-certificates tzdata curl
 
@@ -15,8 +15,8 @@ COPY . .
 
 # Бинарники приложения
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -ldflags="-s -w" -o /bin/server    ./cmd/server     && \
-    go build -ldflags="-s -w" -o /bin/simulator ./cmd/simulation
+    go build -ldflags="-s -w" -o /bin/server     ./cmd/server     && \
+    go build -ldflags="-s -w" -o /bin/simulator  ./cmd/simulation
 
 # golang-migrate CLI для запуска миграций
 RUN MIGRATE_VER=v4.18.1 && \
@@ -34,7 +34,7 @@ RUN apk add --no-cache ca-certificates tzdata
 WORKDIR /app
 
 COPY --from=builder /bin/server    ./server
-COPY --from=builder /bin/simulation ./simulation
+COPY --from=builder /bin/simulator ./simulator
 COPY --from=builder /bin/migrate   ./migrate
 COPY --from=builder /app/metrics.yaml ./metrics.yaml
 COPY --from=builder /app/db/migrations ./db/migrations

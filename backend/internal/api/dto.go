@@ -22,43 +22,6 @@ type PagedResponse[T any] struct {
 	Total   int  `json:"total"`
 }
 
-// ---- health snapshot ----
-
-// HealthSnapshotDTO is the API representation of a diagnostic cycle result.
-type HealthSnapshotDTO struct {
-	LocomotiveID uuid.UUID     `json:"locomotive_id"`
-	Ts           time.Time     `json:"ts"`
-	State        string        `json:"state"`
-	Score        int16         `json:"score"`
-	Category     string        `json:"category"`
-	Issues       []IssueDTO    `json:"issues"`
-}
-
-// IssueDTO represents one detected problem.
-type IssueDTO struct {
-	Code         string  `json:"code"`
-	Level        string  `json:"level"`
-	Target       string  `json:"target"`
-	Message      string  `json:"message"`
-	HealthWeight float32 `json:"health_weight"`
-}
-
-// ---- telemetry ingest ----
-
-// TelemetryBatchRequest is the WebSocket inbound frame sent by simulator/device.
-// Each message must be valid JSON matching this schema.
-type TelemetryBatchRequest struct {
-	LocoID  uuid.UUID     `json:"loco_id"`
-	Ts      time.Time     `json:"ts"`
-	Payload []MetricFrame `json:"payload"`
-}
-
-// MetricFrame is a single metric reading inside a batch.
-type MetricFrame struct {
-	Name  string  `json:"n"`
-	Value float64 `json:"v"`
-}
-
 // ---- locomotives ----
 
 // LocomotiveDTO is the API representation of a locomotive.
@@ -86,11 +49,21 @@ type MetricDefinitionDTO struct {
 	HealthWeight float32  `json:"health_weight"`
 }
 
-// ---- history query ----
+// ---- alerts ----
 
-// HistoryQuery parameters for time-range queries.
-type HistoryQuery struct {
-	From  time.Time `query:"from"`
-	To    time.Time `query:"to"`
-	Limit int32     `query:"limit"`
+// AlertDTO is the API representation of an alert.
+type AlertDTO struct {
+	ID             int64      `json:"id"`
+	LocomotiveID   string     `json:"locomotive_id"`
+	TriggeredAt    time.Time  `json:"triggered_at"`
+	ResolvedAt     *time.Time `json:"resolved_at,omitempty"`
+	Severity       string     `json:"severity"`
+	Code           string     `json:"code"`
+	MetricName     *string    `json:"metric_name,omitempty"`
+	MetricValue    *float32   `json:"metric_value,omitempty"`
+	Threshold      *float32   `json:"threshold,omitempty"`
+	Message        string     `json:"message"`
+	Recommendation string     `json:"recommendation"`
+	Acknowledged   bool       `json:"acknowledged"`
 }
+

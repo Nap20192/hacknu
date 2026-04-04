@@ -54,29 +54,60 @@ func (m *Manager) removeClient(c uuid.UUID) {
 }
 
 // ServeWS is called from the Fiber WebSocket handler with an already-upgraded conn.
+// The client is a PRODUCER: it sends telemetry frames that are forwarded to the
+// aggregator via the read channel.
+// NOTE: this function BLOCKS until the connection is closed — required by gofiber/websocket.
 func (m *Manager) ServeWS(conn *fiberws.Conn, id uuid.UUID) {
-	slog.Info("WebSocket connection established", "client_id", id.String())
+	slog.Info("WebSocket connection established (producer)", "client_id", id.String())
 
 	client := NewClient(id, conn, m)
 	m.addClient(client)
-	m.wg.Add(3)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
 	go func() {
-		defer m.wg.Done()
+		defer wg.Done()
 		client.readMessages()
 	}()
 	go func() {
-		defer m.wg.Done()
+		defer wg.Done()
 		client.writeMessages()
 	}()
 	go func() {
-		defer m.wg.Done()
 		for message := range client.inbound {
-			m.read <- ReadFromWs{
-				Payload:    message,
-				ProducerID: client.id,
+			select {
+			case m.read <- ReadFromWs{Payload: message, ProducerID: client.id}:
+			default:
+				slog.Warn("hub read channel full, dropping frame", "client_id", id)
 			}
 		}
 	}()
+
+	wg.Wait() // block until both read+write goroutines exit
+}
+
+// ServeLive registers a CONSUMER-only dashboard client that receives broadcast
+// LocoUpdate frames but never writes to the read channel.
+// NOTE: this function BLOCKS until the connection is closed — required by gofiber/websocket.
+func (m *Manager) ServeLive(conn *fiberws.Conn, id uuid.UUID) {
+	slog.Info("WebSocket connection established (live dashboard)", "client_id", id.String())
+
+	client := NewClient(id, conn, m)
+	m.addClient(client)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		// drain inbound so the connection stays alive for pings; discard frames
+		client.readMessages()
+	}()
+	go func() {
+		defer wg.Done()
+		client.writeMessages()
+	}()
+
+	wg.Wait()
 }
 
 type WriteToWs struct {

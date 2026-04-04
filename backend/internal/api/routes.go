@@ -21,6 +21,14 @@ func registerRoutes(app *fiber.App, q *sqlc.Queries) {
 	locos.Get("/:id/health", getLatestHealth(q))
 	locos.Get("/:id/health/history", listHealthHistory(q))
 
+	// ── Telemetry history ─────────────────────────────────────────────────────
+	locos.Get("/:id/telemetry", listTelemetry(q))
+
+	// ── Alerts ────────────────────────────────────────────────────────────────
+	locos.Get("/:id/alerts", listActiveAlerts(q))
+	locos.Get("/:id/alerts/history", listAlertsHistory(q))
+	v1.Post("/alerts/:alertId/acknowledge", acknowledgeAlert(q))
+
 	// ── Metric definitions ───────────────────────────────────────────────────
 	metrics := v1.Group("/metrics/definitions")
 	metrics.Get("/", listMetricDefs(q))
@@ -270,3 +278,101 @@ func parseTimeRange(c *fiber.Ctx) (from, to time.Time, limit int32, err error) {
 
 	return from, to, limit, nil
 }
+
+// ── Alert handlers (also served from main API) ────────────────────────────────
+
+func listActiveAlerts(q *sqlc.Queries) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		id, err := parseLocoID(c)
+		if err != nil {
+			return c.Status(400).JSON(Response[any]{Error: err.Error()})
+		}
+		rows, err := q.ListActiveAlertsByLocomotive(c.Context(), id)
+		if err != nil {
+			return c.Status(500).JSON(Response[any]{Error: err.Error()})
+		}
+		dtos := make([]AlertDTO, len(rows))
+		for i, r := range rows {
+			dtos[i] = alertToDTO(r)
+		}
+		return c.JSON(PagedResponse[AlertDTO]{Success: true, Data: dtos, Total: len(dtos)})
+	}
+}
+
+func listAlertsHistory(q *sqlc.Queries) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		id, err := parseLocoID(c)
+		if err != nil {
+			return c.Status(400).JSON(Response[any]{Error: err.Error()})
+		}
+		from, to, _, err := parseTimeRange(c)
+		if err != nil {
+			return c.Status(400).JSON(Response[any]{Error: err.Error()})
+		}
+		rows, err := q.ListAlertsByLocomotiveRange(c.Context(), sqlc.ListAlertsByLocomotiveRangeParams{
+			LocomotiveID:  id,
+			TriggeredAt:   from,
+			TriggeredAt_2: to,
+		})
+		if err != nil {
+			return c.Status(500).JSON(Response[any]{Error: err.Error()})
+		}
+		dtos := make([]AlertDTO, len(rows))
+		for i, r := range rows {
+			dtos[i] = alertToDTO(r)
+		}
+		return c.JSON(PagedResponse[AlertDTO]{Success: true, Data: dtos, Total: len(dtos)})
+	}
+}
+
+func acknowledgeAlert(q *sqlc.Queries) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		alertID, err := c.ParamsInt("alertId")
+		if err != nil {
+			return c.Status(400).JSON(Response[any]{Error: "invalid alert id"})
+		}
+		row, err := q.AcknowledgeAlert(c.Context(), int64(alertID))
+		if err != nil {
+			return c.Status(500).JSON(Response[any]{Error: err.Error()})
+		}
+		return c.JSON(Response[AlertDTO]{Success: true, Data: alertToDTO(row)})
+	}
+}
+
+func alertToDTO(r sqlc.Alert) AlertDTO {
+	return AlertDTO{
+		ID:             r.ID,
+		LocomotiveID:   r.LocomotiveID.String(),
+		TriggeredAt:    r.TriggeredAt,
+		ResolvedAt:     r.ResolvedAt,
+		Severity:       r.Severity,
+		Code:           r.Code,
+		MetricName:     r.MetricName,
+		MetricValue:    r.MetricValue,
+		Threshold:      r.Threshold,
+		Message:        r.Message,
+		Recommendation: r.Recommendation,
+		Acknowledged:   r.Acknowledged,
+	}
+}
+
+// ── Telemetry history handler ─────────────────────────────────────────────────
+
+func listTelemetry(q *sqlc.Queries) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		id, err := parseLocoID(c)
+		if err != nil {
+			return c.Status(400).JSON(Response[any]{Error: err.Error()})
+		}
+		limit := int32(c.QueryInt("limit", 100))
+		rows, err := q.ListTelemetryByLocomotiveLatest(c.Context(), sqlc.ListTelemetryByLocomotiveLatestParams{
+			LocomotiveID: id,
+			Limit:        limit,
+		})
+		if err != nil {
+			return c.Status(500).JSON(Response[any]{Error: err.Error()})
+		}
+		return c.JSON(PagedResponse[sqlc.TelemetryEvent]{Success: true, Data: rows, Total: len(rows)})
+	}
+}
+

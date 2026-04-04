@@ -26,19 +26,16 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable
-      PORT: ${PORT}
-      LOG_LEVEL: ${LOG_LEVEL}
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      PORT: ${PORT:-8081}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_PRETTY: "false"
-      SWAGGER_HOST: ${SWAGGER_HOST}
-      ADMIN_USER: ${ADMIN_USER}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
-      BUFFER_CAP: ${BUFFER_CAP}
-      FLUSH_INTERVAL_MS: ${FLUSH_INTERVAL_MS}
-      TELEMETRY_RETENTION: ${TELEMETRY_RETENTION}
-      EMA_RECALC_INTERVAL: ${EMA_RECALC_INTERVAL}
+      BUFFER_CAP: ${BUFFER_CAP:-50}
+      FLUSH_INTERVAL_MS: ${FLUSH_INTERVAL_MS:-500}
+      TELEMETRY_RETENTION: ${TELEMETRY_RETENTION:-72h}
+      EMA_RECALC_INTERVAL: ${EMA_RECALC_INTERVAL:-1h}
     ports:
-      - "${PORT}:${PORT}"
+      - "${PORT:-8081}:${PORT:-8081}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -50,40 +47,21 @@ services:
   simulation:
     build:
       context: .
-      dockerfile: ./cmd/simulation/Dockerfile
+      dockerfile: Dockerfile
     container_name: hacknu_simulation
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable
-      LOCO_ID: ${LOCO_ID}
-      TICK_INTERVAL: ${TICK_INTERVAL}
-      METRICS_CONFIG: ${METRICS_CONFIG}
-      MIGRATIONS_PATH: ${MIGRATIONS_PATH}
-      WS_URL: ${WS_URL}
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      LOCO_ID: ${LOCO_ID:-00000000-0000-0000-0000-000000000001}
+      TICK_INTERVAL: ${TICK_INTERVAL:-1s}
+      METRICS_CONFIG: /app/metrics.yaml
+      WS_URL: ws://server:${PORT:-8081}/ws/telemetry
     depends_on:
-      postgres:
-        condition: service_healthy
-
-  alerts:
-    build:
-      context: .
-      dockerfile: ./cmd/alerts/Dockerfile
-    container_name: hacknu_alerts
-    env_file:
-      - .env
-    environment:
-      DATABASE_URL: postgres://loco:loco_secret@postgres:5432/loco_twin?sslmode=disable
-    ports:
-      - "8081:8080"
-    depends_on:
-      postgres:
-        condition: service_healthy
       server:
         condition: service_started
     volumes:
       - ./metrics.yaml:/app/metrics.yaml
-      - ./db/migrations:/app/db/migrations
     entrypoint: ["./simulator"]
 
 volumes:

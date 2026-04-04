@@ -49,6 +49,36 @@ type Issue struct {
 	HealthWeight float32 // copied from MetricRule; used for cumulative Degraded calc
 }
 
+// IssueWire is the JSON-serializable representation of an Issue for WebSocket
+// broadcast and REST responses. Shared across pipeline and API layers.
+type IssueWire struct {
+	Code         string  `json:"code"`
+	Level        string  `json:"level"`
+	Target       string  `json:"target"`
+	Message      string  `json:"message"`
+	HealthWeight float32 `json:"health_weight"`
+}
+
+// ToWire converts a domain Issue to its wire representation.
+func (i *Issue) ToWire() IssueWire {
+	return IssueWire{
+		Code:         i.Code,
+		Level:        i.Level.String(),
+		Target:       i.Target,
+		Message:      i.Message,
+		HealthWeight: i.HealthWeight,
+	}
+}
+
+// IssuesToWire converts a slice of Issues to their wire representations.
+func IssuesToWire(issues []Issue) []IssueWire {
+	out := make([]IssueWire, len(issues))
+	for i := range issues {
+		out[i] = issues[i].ToWire()
+	}
+	return out
+}
+
 // MetricRule mirrors the thresholds stored in the metric_definitions table.
 type MetricRule struct {
 	Name         string

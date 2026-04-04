@@ -14,25 +14,16 @@ import (
 	"github.com/google/uuid"
 )
 
-// LocoUpdate — JSON-фрейм, который сервер отправляет дашборду по WebSocket.
-// Содержит и снапшот здоровья, и нормализованные метрики для обновления графиков.
+// LocoUpdate is the JSON frame broadcast to dashboard clients via WebSocket.
+// Contains health snapshot + EMA-smoothed metrics for chart updates.
 type LocoUpdate struct {
-	LocoID   uuid.UUID          `json:"loco_id"`
-	Ts       time.Time          `json:"ts"`
-	State    string             `json:"state"`
-	Score    int16              `json:"score"`
-	Category string             `json:"category"`
-	Issues   []IssueWire        `json:"issues"`
-	Metrics  map[string]float64 `json:"metrics"` // name → EMA-сглаженное значение
-}
-
-// IssueWire — сериализуемое представление одной проблемы.
-type IssueWire struct {
-	Code         string  `json:"code"`
-	Level        string  `json:"level"`
-	Target       string  `json:"target"`
-	Message      string  `json:"message"`
-	HealthWeight float32 `json:"health_weight"`
+	LocoID   uuid.UUID            `json:"loco_id"`
+	Ts       time.Time            `json:"ts"`
+	State    string               `json:"state"`
+	Score    int16                `json:"score"`
+	Category string               `json:"category"`
+	Issues   []domain.IssueWire   `json:"issues"`
+	Metrics  map[string]float64   `json:"metrics"`
 }
 
 // AgregatorService читает сырые фреймы из hub, маршрутизирует по loco_id
@@ -148,22 +139,11 @@ func (s *AgregatorService) shutdown() {
 	slog.Info("aggregator service stopped")
 }
 
-// buildLocoUpdate собирает broadcast-пакет из снапшота и нормализованных метрик.
+// buildLocoUpdate assembles the broadcast packet from a snapshot and normalized metrics.
 func buildLocoUpdate(snap spec.HealthSnapshot, metrics []domain.Metric) LocoUpdate {
 	metricsMap := make(map[string]float64, len(metrics))
 	for _, m := range metrics {
 		metricsMap[m.Name] = m.Value
-	}
-
-	issues := make([]IssueWire, len(snap.Issues))
-	for i, iss := range snap.Issues {
-		issues[i] = IssueWire{
-			Code:         iss.Code,
-			Level:        iss.Level.String(),
-			Target:       iss.Target,
-			Message:      iss.Message,
-			HealthWeight: iss.HealthWeight,
-		}
 	}
 
 	return LocoUpdate{
@@ -172,7 +152,7 @@ func buildLocoUpdate(snap spec.HealthSnapshot, metrics []domain.Metric) LocoUpda
 		State:    snap.State.String(),
 		Score:    snap.Score,
 		Category: locoCategory(snap.State),
-		Issues:   issues,
+		Issues:   domain.IssuesToWire(snap.Issues),
 		Metrics:  metricsMap,
 	}
 }

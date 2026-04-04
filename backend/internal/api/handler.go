@@ -48,9 +48,12 @@ func NewApp(q *sqlc.Queries, h *hub.Manager) *fiber.App {
 	// ── Swagger UI ────────────────────────────────────────────────────────────
 	app.Get("/swagger/*", fiberSwagger.HandlerDefault)
 
-	// ── WebSocket telemetry ingest ────────────────────────────────────────────
-	// gofiber/websocket/v2 works natively with fasthttp — no adaptor needed.
+	// ── WebSocket telemetry ingest (simulator → server) ─────────────────────
 	app.Get("/ws/telemetry", fiberws.New(WSHandler(h)))
+
+	// ── WebSocket live feed (server → dashboard clients) ─────────────────────
+	// Dashboard clients connect here to receive broadcast LocoUpdate frames.
+	app.Get("/ws/live", fiberws.New(LiveHandler(h)))
 
 	// ── REST routes ───────────────────────────────────────────────────────────
 	registerRoutes(app, q)

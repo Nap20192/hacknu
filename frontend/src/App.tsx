@@ -1,34 +1,65 @@
 import { useState } from 'react'
+import { useLocomotives } from './hooks/useLocomotives'
+import { useTelemetry } from './hooks/useTelemetry'
+import { HealthIndex } from './components/HealthIndex'
+import { MetricsGrid } from './components/MetricsGrid'
+import { IssuesPanel } from './components/IssuesPanel'
 import { AlertsPanel } from './components/AlertsPanel'
+import { ConnectionBadge } from './components/ConnectionBadge'
 import './App.css'
 
-function App() {
-  const [selectedLoco, setSelectedLoco] = useState<string>('loco-001')
+export default function App() {
+  const { locomotives, loading } = useLocomotives()
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  const locoId = selectedId ?? (locomotives.length > 0 ? locomotives[0].id : null)
+  const { latest, history, wsStatus } = useTelemetry(locoId)
+
+  const selectedLoco = locomotives.find((l) => l.id === locoId)
 
   return (
-    <div className="app">
+    <div className="app dark">
       <header className="app-header">
-        <h1>Locomotive Digital Twin - Alerts Monitor</h1>
-        <div className="header-controls">
-          <label htmlFor="loco-select">Выберите локомотив:</label>
-          <select
-            id="loco-select"
-            value={selectedLoco}
-            onChange={(e) => setSelectedLoco(e.target.value)}
-          >
-            <option value="loco-001">Локо-001</option>
-            <option value="loco-002">Локо-002</option>
-            <option value="loco-003">Локо-003</option>
-          </select>
+        <div className="header-left">
+          <span className="app-logo">🚂</span>
+          <h1 className="app-title">Цифровой двойник локомотива</h1>
+        </div>
+        <div className="header-center">
+          {loading ? (
+            <span className="loco-loading">Загрузка...</span>
+          ) : (
+            <select
+              className="loco-select"
+              value={locoId ?? ''}
+              onChange={(e) => setSelectedId(e.target.value || null)}
+            >
+              {locomotives.map((l) => (
+                <option key={l.id} value={l.id}>{l.display_name}</option>
+              ))}
+            </select>
+          )}
+          {selectedLoco && <span className="loco-type">{selectedLoco.loco_type}</span>}
+        </div>
+        <div className="header-right">
+          <ConnectionBadge status={wsStatus} />
+          {latest && (
+            <span className="last-update">
+              {new Date(latest.ts).toLocaleTimeString('ru-RU')}
+            </span>
+          )}
         </div>
       </header>
 
       <main className="app-main">
-        <AlertsPanel locomotiveId={selectedLoco} pollingInterval={3000} />
+        <div className="left-column">
+          <HealthIndex update={latest} />
+          <IssuesPanel issues={latest?.issues ?? []} />
+          {locoId && <AlertsPanel locomotiveId={locoId} pollingInterval={5000} />}
+        </div>
+        <div className="right-column">
+          <MetricsGrid update={latest} history={history} />
+        </div>
       </main>
     </div>
   )
 }
-
-export default App
-
