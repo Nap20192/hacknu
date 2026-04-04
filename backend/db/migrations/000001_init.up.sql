@@ -11,6 +11,12 @@ CREATE TABLE metric_definitions (
     unit TEXT NOT NULL,
     physical_min real,
     physical_max real,
+    normal_min real,
+    normal_max real,
+    warn_above real,
+    warn_below real,
+    crit_above real,
+    crit_below real,
     health_weight real NOT NULL DEFAULT 0.0,
     ema_alpha real NOT NULL DEFAULT 0.1 CHECK (ema_alpha BETWEEN 0 AND 1),
     display_opts JSONB NOT NULL DEFAULT '{}',
@@ -23,6 +29,7 @@ CREATE TABLE metric_definitions (
 CREATE TABLE locomotives (
     id TEXT PRIMARY KEY,
     display_name TEXT NOT NULL,
+    loco_type TEXT NOT NULL DEFAULT '',
     registered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     last_seen_at TIMESTAMPTZ,
     active BOOLEAN NOT NULL DEFAULT TRUE
@@ -37,6 +44,7 @@ CREATE TABLE telemetry_events (
     locomotive_id TEXT NOT NULL,
     ts TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     metrics JSONB NOT NULL DEFAULT '{}',
+    raw JSONB NOT NULL DEFAULT '{}'
 );
 
 -- sqlc:ignore
