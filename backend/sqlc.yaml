@@ -49,7 +49,18 @@ overrides:
           pointer: true
 
       # string
-      - db_type: "integer"
+      - db_type: "BIGSERIAL"
+        nullable: true
+        go_type:
+          type: "int64"
+      - db_type: "BIGSERIAL"
+        nullable: true
+        go_type:
+          type: "int64"
+          pointer: true
+
+
+      - db_type: "SMALLINT"
         nullable: true
         go_type:
           type: "int64"
@@ -58,7 +69,12 @@ overrides:
       - db_type: "real"
         nullable: true
         go_type:
-          type: "float64"
+          type: "float32"
+
+      - db_type: "real"
+        nullable: true
+        go_type:
+          type: "float32"
           pointer: true
 
       # any

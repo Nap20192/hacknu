@@ -18,21 +18,21 @@ type Alert struct {
 	Severity       string        `json:"severity"`
 	Code           string        `json:"code"`
 	MetricName     *string       `json:"metric_name"`
-	MetricValue    pgtype.Float8 `json:"metric_value"`
-	Threshold      pgtype.Float8 `json:"threshold"`
+	MetricValue    pgtype.Float4 `json:"metric_value"`
+	Threshold      pgtype.Float4 `json:"threshold"`
 	Message        string        `json:"message"`
 	Recommendation string        `json:"recommendation"`
 	Acknowledged   bool          `json:"acknowledged"`
 }
 
 type HealthSnapshot struct {
-	ID           pgtype.Int8 `json:"id"`
-	LocomotiveID string      `json:"locomotive_id"`
-	Ts           time.Time   `json:"ts"`
-	Score        int16       `json:"score"`
-	Category     string      `json:"category"`
-	Factors      []byte      `json:"factors"`
-	MetricsSnap  []byte      `json:"metrics_snap"`
+	ID           int64     `json:"id"`
+	LocomotiveID string    `json:"locomotive_id"`
+	Ts           time.Time `json:"ts"`
+	Score        int16     `json:"score"`
+	Category     string    `json:"category"`
+	Factors      []byte    `json:"factors"`
+	MetricsSnap  []byte    `json:"metrics_snap"`
 }
 
 type Locomotive struct {
@@ -49,24 +49,24 @@ type MetricDefinition struct {
 	Display      string        `json:"display"`
 	Description  string        `json:"description"`
 	Unit         string        `json:"unit"`
-	PhysicalMin  pgtype.Float8 `json:"physical_min"`
-	PhysicalMax  pgtype.Float8 `json:"physical_max"`
-	NormalMin    pgtype.Float8 `json:"normal_min"`
-	NormalMax    pgtype.Float8 `json:"normal_max"`
-	WarnAbove    pgtype.Float8 `json:"warn_above"`
-	WarnBelow    pgtype.Float8 `json:"warn_below"`
-	CritAbove    pgtype.Float8 `json:"crit_above"`
-	CritBelow    pgtype.Float8 `json:"crit_below"`
-	HealthWeight float64       `json:"health_weight"`
-	EmaAlpha     float64       `json:"ema_alpha"`
+	PhysicalMin  pgtype.Float4 `json:"physical_min"`
+	PhysicalMax  pgtype.Float4 `json:"physical_max"`
+	NormalMin    pgtype.Float4 `json:"normal_min"`
+	NormalMax    pgtype.Float4 `json:"normal_max"`
+	WarnAbove    pgtype.Float4 `json:"warn_above"`
+	WarnBelow    pgtype.Float4 `json:"warn_below"`
+	CritAbove    pgtype.Float4 `json:"crit_above"`
+	CritBelow    pgtype.Float4 `json:"crit_below"`
+	HealthWeight float32       `json:"health_weight"`
+	EmaAlpha     float32       `json:"ema_alpha"`
 	DisplayOpts  []byte        `json:"display_opts"`
 	UpdatedAt    time.Time     `json:"updated_at"`
 }
 
 type TelemetryEvent struct {
-	ID           pgtype.Int8 `json:"id"`
-	LocomotiveID string      `json:"locomotive_id"`
-	Ts           time.Time   `json:"ts"`
-	Metrics      []byte      `json:"metrics"`
-	Raw          []byte      `json:"raw"`
+	ID           int64     `json:"id"`
+	LocomotiveID string    `json:"locomotive_id"`
+	Ts           time.Time `json:"ts"`
+	Metrics      []byte    `json:"metrics"`
+	Raw          []byte    `json:"raw"`
 }

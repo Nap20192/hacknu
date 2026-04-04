@@ -211,16 +211,16 @@ type UpsertMetricDefinitionParams struct {
 	Display      string        `json:"display"`
 	Description  string        `json:"description"`
 	Unit         string        `json:"unit"`
-	PhysicalMin  pgtype.Float8 `json:"physical_min"`
-	PhysicalMax  pgtype.Float8 `json:"physical_max"`
-	NormalMin    pgtype.Float8 `json:"normal_min"`
-	NormalMax    pgtype.Float8 `json:"normal_max"`
-	WarnAbove    pgtype.Float8 `json:"warn_above"`
-	WarnBelow    pgtype.Float8 `json:"warn_below"`
-	CritAbove    pgtype.Float8 `json:"crit_above"`
-	CritBelow    pgtype.Float8 `json:"crit_below"`
-	HealthWeight float64       `json:"health_weight"`
-	EmaAlpha     float64       `json:"ema_alpha"`
+	PhysicalMin  pgtype.Float4 `json:"physical_min"`
+	PhysicalMax  pgtype.Float4 `json:"physical_max"`
+	NormalMin    pgtype.Float4 `json:"normal_min"`
+	NormalMax    pgtype.Float4 `json:"normal_max"`
+	WarnAbove    pgtype.Float4 `json:"warn_above"`
+	WarnBelow    pgtype.Float4 `json:"warn_below"`
+	CritAbove    pgtype.Float4 `json:"crit_above"`
+	CritBelow    pgtype.Float4 `json:"crit_below"`
+	HealthWeight float32       `json:"health_weight"`
+	EmaAlpha     float32       `json:"ema_alpha"`
 	DisplayOpts  []byte        `json:"display_opts"`
 }
 

@@ -96,8 +96,8 @@ type InsertAlertParams struct {
 	Severity       string        `json:"severity"`
 	Code           string        `json:"code"`
 	MetricName     *string       `json:"metric_name"`
-	MetricValue    pgtype.Float8 `json:"metric_value"`
-	Threshold      pgtype.Float8 `json:"threshold"`
+	MetricValue    pgtype.Float4 `json:"metric_value"`
+	Threshold      pgtype.Float4 `json:"threshold"`
 	Message        string        `json:"message"`
 	Recommendation string        `json:"recommendation"`
 }
