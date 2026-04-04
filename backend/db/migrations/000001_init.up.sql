@@ -1,5 +1,12 @@
--- Enable TimescaleDB
-CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
+-- Enable TimescaleDB if available (gracefully skipped on plain PostgreSQL)
+DO $$
+BEGIN
+    CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'TimescaleDB not available, skipping: %', SQLERRM;
+END
+$$;
 
 -- =============================================================
 -- METRIC DEFINITIONS
@@ -48,7 +55,14 @@ CREATE TABLE telemetry_events (
 );
 
 -- sqlc:ignore
-SELECT create_hypertable ('telemetry_events', 'ts');
+DO $$
+BEGIN
+    PERFORM create_hypertable('telemetry_events', 'ts');
+EXCEPTION
+    WHEN undefined_function THEN
+        RAISE NOTICE 'create_hypertable not available, skipping';
+END
+$$;
 
 CREATE INDEX idx_tel_loco_ts ON telemetry_events (locomotive_id, ts DESC);
 
@@ -74,7 +88,14 @@ CREATE TABLE health_snapshots (
 );
 
 -- sqlc:ignore
-SELECT create_hypertable ('health_snapshots', 'ts');
+DO $$
+BEGIN
+    PERFORM create_hypertable('health_snapshots', 'ts');
+EXCEPTION
+    WHEN undefined_function THEN
+        RAISE NOTICE 'create_hypertable not available, skipping';
+END
+$$;
 
 CREATE INDEX idx_health_loco_ts ON health_snapshots (locomotive_id, ts DESC);
 
