@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -11,12 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Nap20192/hacknu/gen/sqlc"
 	"github.com/Nap20192/hacknu/internal/services"
-	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 )
 
@@ -24,10 +19,23 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	dbURL := envOrDefault("DATABASE_URL", "postgres://loco:loco_secret@localhost:5432/loco_twin?sslmode=disable")
-	locoID := envOrDefault("LOCO_ID", "loco-001")
+	locoIDStr := envOrDefault("LOCO_ID", "")
 	metricsConfig := envOrDefault("METRICS_CONFIG", "metrics.yaml")
 	intervalStr := envOrDefault("TICK_INTERVAL", "1s")
+	wsURL := envOrDefault("WS_URL", "ws://localhost:8081/ws/telemetry")
+
+	var locoID uuid.UUID
+	if locoIDStr == "" {
+		locoID = uuid.New()
+		slog.Info("LOCO_ID not set, generated new UUID", "loco_id", locoID)
+	} else {
+		var err error
+		locoID, err = uuid.Parse(locoIDStr)
+		if err != nil {
+			slog.Error("invalid LOCO_ID: must be a UUID", "value", locoIDStr)
+			os.Exit(1)
+		}
+	}
 
 	interval, err := time.ParseDuration(intervalStr)
 	if err != nil {
@@ -35,101 +43,47 @@ func main() {
 		os.Exit(1)
 	}
 
-	pool, err := pgxpool.New(ctx, dbURL)
+	defs, err := loadMetricDefs(metricsConfig)
 	if err != nil {
-		slog.Error("connect to postgres", "err", err)
+		slog.Error("load metrics config", "err", err)
 		os.Exit(1)
 	}
-	defer pool.Close()
+	slog.Info("loaded metric definitions", "count", len(defs))
 
-	if err = pool.Ping(ctx); err != nil {
-		slog.Error("ping postgres", "err", err)
-		os.Exit(1)
-	}
-	slog.Info("connected to postgres", "url", dbURL)
-
-	migrationsPath := envOrDefault("MIGRATIONS_PATH", "db/migrations")
-	if err = runMigrations(dbURL, migrationsPath); err != nil {
-		slog.Error("run migrations", "err", err)
-		os.Exit(1)
-	}
-
-	q := sqlc.New(pool)
-
-	if err = seedMetrics(ctx, q, metricsConfig); err != nil {
-		slog.Error("seed metrics", "err", err)
-		os.Exit(1)
-	}
-
-	svc := services.NewSimulationService(q, locoID, interval)
-	slog.Info("starting simulation", "loco_id", locoID, "interval", interval)
-	if err = svc.Run(ctx); err != nil && err != context.Canceled {
+	svc := services.NewSimulationService(wsURL, locoID, interval, defs)
+	slog.Info("starting simulation", "loco_id", locoID, "interval", interval, "ws_url", wsURL)
+	if err = svc.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 		slog.Error("simulation stopped with error", "err", err)
 		os.Exit(1)
 	}
 	slog.Info("simulation stopped")
 }
 
-// runMigrations applies all pending UP migrations.
-func runMigrations(dbURL, migrationsPath string) error {
-	// golang-migrate pgx/v5 driver expects the pgx5:// scheme
-	migrateURL := "pgx5://" + dbURL[len("postgres://"):]
-	if len(dbURL) >= 14 && dbURL[:14] == "postgresql://" {
-		migrateURL = "pgx5://" + dbURL[len("postgresql://"):]
-	}
-
-	m, err := migrate.New("file://"+migrationsPath, migrateURL)
-	if err != nil {
-		return fmt.Errorf("init migrate: %w", err)
-	}
-	defer m.Close()
-
-	if err = m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return fmt.Errorf("migrate up: %w", err)
-	}
-	slog.Info("migrations applied")
-	return nil
-}
-
-// seedMetrics reads metrics.yaml and upserts all metric definitions into the DB.
-func seedMetrics(ctx context.Context, q *sqlc.Queries, path string) error {
+// loadMetricDefs reads metrics.yaml and converts it to simulation MetricDef slice.
+func loadMetricDefs(path string) ([]services.MetricDef, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("read metrics config %q: %w", path, err)
+		return nil, fmt.Errorf("read %q: %w", path, err)
 	}
-
 	var cfg metricsConfig
 	if err = yaml.Unmarshal(data, &cfg); err != nil {
-		return fmt.Errorf("parse metrics config: %w", err)
+		return nil, fmt.Errorf("parse %q: %w", path, err)
 	}
-
+	defs := make([]services.MetricDef, 0, len(cfg.Metrics))
 	for _, m := range cfg.Metrics {
-		displayOpts, _ := json.Marshal(m.DisplayOpts)
-
-		params := sqlc.UpsertMetricDefinitionParams{
-			Name:         m.Name,
-			Display:      m.Display,
-			Description:  m.Description,
-			Unit:         m.Unit,
-			PhysicalMin:  ptr32(m.Physical.Min),
-			PhysicalMax:  ptr32(m.Physical.Max),
-			NormalMin:    ptr32(m.Normal.Min),
-			NormalMax:    ptr32(m.Normal.Max),
-			WarnAbove:    m.Thresholds.WarnAbove,
-			WarnBelow:    m.Thresholds.WarnBelow,
-			CritAbove:    m.Thresholds.CriticalAbove,
-			CritBelow:    m.Thresholds.CriticalBelow,
-			HealthWeight: m.HealthWeight,
-			EmaAlpha:     m.EmaAlpha,
-			DisplayOpts:  displayOpts,
-		}
-
-		if _, err = q.UpsertMetricDefinition(ctx, params); err != nil {
-			return fmt.Errorf("upsert metric %q: %w", m.Name, err)
-		}
-		slog.Info("seeded metric", "name", m.Name)
+		defs = append(defs, services.MetricDef{
+			Name:        m.Name,
+			PhysicalMin: m.Physical.Min,
+			PhysicalMax: m.Physical.Max,
+			NormalMin:   m.Normal.Min,
+			NormalMax:   m.Normal.Max,
+			WarnAbove:   m.Thresholds.WarnAbove,
+			WarnBelow:   m.Thresholds.WarnBelow,
+			CritAbove:   m.Thresholds.CriticalAbove,
+			CritBelow:   m.Thresholds.CriticalBelow,
+		})
 	}
-	return nil
+	return defs, nil
 }
 
 // --------------------------------------------------------------------------
@@ -141,17 +95,10 @@ type metricsConfig struct {
 }
 
 type yamlMetric struct {
-	Name         string         `yaml:"name"`
-	Display      string         `yaml:"display"`
-	Description  string         `yaml:"description"`
-	Unit         string         `yaml:"unit"`
-	Group        string         `yaml:"group"`
-	Physical     yamlMinMax     `yaml:"physical"`
-	Normal       yamlMinMax     `yaml:"normal"`
-	Thresholds   yamlThresholds `yaml:"thresholds"`
-	HealthWeight float32        `yaml:"health_weight"`
-	EmaAlpha     float32        `yaml:"ema_alpha"`
-	DisplayOpts  map[string]any `yaml:"display_opts"`
+	Name       string         `yaml:"name"`
+	Physical   yamlMinMax     `yaml:"physical"`
+	Normal     yamlMinMax     `yaml:"normal"`
+	Thresholds yamlThresholds `yaml:"thresholds"`
 }
 
 type yamlMinMax struct {
@@ -165,12 +112,6 @@ type yamlThresholds struct {
 	CriticalAbove *float32 `yaml:"critical_above"`
 	CriticalBelow *float32 `yaml:"critical_below"`
 }
-
-// --------------------------------------------------------------------------
-// Helpers
-// --------------------------------------------------------------------------
-
-func ptr32(v float32) *float32 { return &v }
 
 func envOrDefault(key, def string) string {
 	if v := os.Getenv(key); v != "" {

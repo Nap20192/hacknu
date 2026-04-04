@@ -8,6 +8,8 @@ package sqlc
 import (
 	"context"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 const getLatestHealthSnapshot = `-- name: GetLatestHealthSnapshot :one
@@ -26,7 +28,7 @@ ORDER BY ts DESC
 LIMIT 1
 `
 
-func (q *Queries) GetLatestHealthSnapshot(ctx context.Context, locomotiveID string) (HealthSnapshot, error) {
+func (q *Queries) GetLatestHealthSnapshot(ctx context.Context, locomotiveID uuid.UUID) (HealthSnapshot, error) {
 	row := q.db.QueryRow(ctx, getLatestHealthSnapshot, locomotiveID)
 	var i HealthSnapshot
 	err := row.Scan(
@@ -64,7 +66,7 @@ RETURNING
 `
 
 type InsertHealthSnapshotParams struct {
-	LocomotiveID string    `json:"locomotive_id"`
+	LocomotiveID uuid.UUID `json:"locomotive_id"`
 	Ts           time.Time `json:"ts"`
 	Score        int16     `json:"score"`
 	Category     string    `json:"category"`
@@ -112,8 +114,8 @@ LIMIT $2
 `
 
 type ListHealthSnapshotsLatestParams struct {
-	LocomotiveID string `json:"locomotive_id"`
-	Limit        int32  `json:"limit"`
+	LocomotiveID uuid.UUID `json:"locomotive_id"`
+	Limit        int32     `json:"limit"`
 }
 
 func (q *Queries) ListHealthSnapshotsLatest(ctx context.Context, arg ListHealthSnapshotsLatestParams) ([]HealthSnapshot, error) {
@@ -162,7 +164,7 @@ ORDER BY ts ASC
 `
 
 type ListHealthSnapshotsRangeParams struct {
-	LocomotiveID string    `json:"locomotive_id"`
+	LocomotiveID uuid.UUID `json:"locomotive_id"`
 	Ts           time.Time `json:"ts"`
 	Ts_2         time.Time `json:"ts_2"`
 }

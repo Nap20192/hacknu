@@ -1,6 +1,10 @@
 package api
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 // ---- generic envelope ----
 
@@ -22,12 +26,12 @@ type PagedResponse[T any] struct {
 
 // HealthSnapshotDTO is the API representation of a diagnostic cycle result.
 type HealthSnapshotDTO struct {
-	LocomotiveID string     `json:"locomotive_id"`
-	Ts           time.Time  `json:"ts"`
-	State        string     `json:"state"`
-	Score        int16      `json:"score"`
-	Category     string     `json:"category"`
-	Issues       []IssueDTO `json:"issues"`
+	LocomotiveID uuid.UUID     `json:"locomotive_id"`
+	Ts           time.Time     `json:"ts"`
+	State        string        `json:"state"`
+	Score        int16         `json:"score"`
+	Category     string        `json:"category"`
+	Issues       []IssueDTO    `json:"issues"`
 }
 
 // IssueDTO represents one detected problem.
@@ -44,7 +48,7 @@ type IssueDTO struct {
 // TelemetryBatchRequest is the WebSocket inbound frame sent by simulator/device.
 // Each message must be valid JSON matching this schema.
 type TelemetryBatchRequest struct {
-	LocoID  string        `json:"loco_id"`
+	LocoID  uuid.UUID     `json:"loco_id"`
 	Ts      time.Time     `json:"ts"`
 	Payload []MetricFrame `json:"payload"`
 }
@@ -59,7 +63,7 @@ type MetricFrame struct {
 
 // LocomotiveDTO is the API representation of a locomotive.
 type LocomotiveDTO struct {
-	ID           string     `json:"id"`
+	ID           uuid.UUID  `json:"id"`
 	DisplayName  string     `json:"display_name"`
 	LocoType     string     `json:"loco_type"`
 	RegisteredAt time.Time  `json:"registered_at"`

@@ -11,6 +11,7 @@ import (
 	"github.com/Nap20192/hacknu/internal/domain"
 	"github.com/Nap20192/hacknu/internal/hub"
 	"github.com/Nap20192/hacknu/internal/spec"
+	"github.com/google/uuid"
 )
 
 const chanSize = 256 // буфер входящего канала воркера
@@ -19,7 +20,7 @@ const chanSize = 256 // буфер входящего канала воркер�
 // Обрабатывает сырые батчи по пайплайну:
 // validate → deduplicate → buffer → flush(normalize) → engine → persist+broadcast.
 type agregatorWorker struct {
-	locoID   string
+	locoID   uuid.UUID
 	in       chan domain.TelemetryBatch
 	rawIn    chan []byte // оригинальные JSON-байты для хранения в telemetry_events.raw
 	buffer   *MetricBuffer
@@ -33,7 +34,7 @@ type agregatorWorker struct {
 }
 
 func newWorker(
-	locoID string,
+	locoID uuid.UUID,
 	registry *spec.RuleRegistry,
 	engine *spec.Engine,
 	queries sqlc.Querier,

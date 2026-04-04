@@ -60,6 +60,7 @@ services:
       TICK_INTERVAL: ${TICK_INTERVAL}
       METRICS_CONFIG: ${METRICS_CONFIG}
       MIGRATIONS_PATH: ${MIGRATIONS_PATH}
+      WS_URL: ${WS_URL}
     depends_on:
       postgres:
         condition: service_healthy

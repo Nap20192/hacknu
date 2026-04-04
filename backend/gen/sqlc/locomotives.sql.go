@@ -8,6 +8,8 @@ package sqlc
 import (
 	"context"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 const getLocomotive = `-- name: GetLocomotive :one
@@ -23,7 +25,7 @@ WHERE
     id = $1
 `
 
-func (q *Queries) GetLocomotive(ctx context.Context, id string) (Locomotive, error) {
+func (q *Queries) GetLocomotive(ctx context.Context, id uuid.UUID) (Locomotive, error) {
 	row := q.db.QueryRow(ctx, getLocomotive, id)
 	var i Locomotive
 	err := row.Scan(
@@ -135,8 +137,8 @@ RETURNING
 `
 
 type SetLocomotiveActiveParams struct {
-	ID     string `json:"id"`
-	Active bool   `json:"active"`
+	ID     uuid.UUID `json:"id"`
+	Active bool      `json:"active"`
 }
 
 func (q *Queries) SetLocomotiveActive(ctx context.Context, arg SetLocomotiveActiveParams) (Locomotive, error) {
@@ -169,7 +171,7 @@ RETURNING
 `
 
 type UpdateLocomotiveLastSeenParams struct {
-	ID         string     `json:"id"`
+	ID         uuid.UUID  `json:"id"`
 	LastSeenAt *time.Time `json:"last_seen_at"`
 }
 
@@ -214,7 +216,7 @@ RETURNING
 `
 
 type UpsertLocomotiveParams struct {
-	ID          string     `json:"id"`
+	ID          uuid.UUID  `json:"id"`
 	DisplayName string     `json:"display_name"`
 	LocoType    string     `json:"loco_type"`
 	LastSeenAt  *time.Time `json:"last_seen_at"`

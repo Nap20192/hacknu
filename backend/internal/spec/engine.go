@@ -5,12 +5,13 @@ import (
 	"time"
 
 	"github.com/Nap20192/hacknu/internal/domain"
+	"github.com/google/uuid"
 )
 
 // HealthSnapshot is the result of one full diagnostic cycle.
 // It is ready to be persisted to the health_snapshots TimescaleDB table.
 type HealthSnapshot struct {
-	LocoID string
+	LocoID uuid.UUID
 	Ts     time.Time
 	State  LocoState
 	// Score is a 0–100 integer health index (100 = all green, 0 = catastrophic).

@@ -59,6 +59,7 @@ func main() {
 
 	// ── Rule Registry ─────────────────────────────────────────────────────────
 	registry := spec.NewRuleRegistry()
+	slog.Info("refreshing rule registry...")
 	if err := refreshRegistry(context.Background(), queries, registry); err != nil {
 		slog.Warn("initial rule registry load failed", "err", err)
 	}
@@ -106,7 +107,7 @@ func main() {
 	<-quit
 	slog.Info("shutting down...")
 
-	cancel() // останавливаем aggregator
+	cancel()
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()

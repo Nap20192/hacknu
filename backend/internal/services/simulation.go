@@ -8,116 +8,92 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/Nap20192/hacknu/gen/sqlc"
 	"github.com/Nap20192/hacknu/internal/domain"
-	"github.com/Nap20192/hacknu/internal/spec"
+	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 )
 
-// SimulationRepository is the subset of sqlc.Queries used by the simulator.
-type SimulationRepository interface {
-	InsertTelemetryEvent(ctx context.Context, arg sqlc.InsertTelemetryEventParams) (sqlc.TelemetryEvent, error)
-	InsertHealthSnapshot(ctx context.Context, arg sqlc.InsertHealthSnapshotParams) (sqlc.HealthSnapshot, error)
-	InsertAlert(ctx context.Context, arg sqlc.InsertAlertParams) (sqlc.Alert, error)
-	ListMetricDefinitions(ctx context.Context) ([]sqlc.MetricDefinition, error)
-	UpsertLocomotive(ctx context.Context, arg sqlc.UpsertLocomotiveParams) (sqlc.Locomotive, error)
-	UpdateLocomotiveLastSeen(ctx context.Context, arg sqlc.UpdateLocomotiveLastSeenParams) (sqlc.Locomotive, error)
+// MetricDef holds the simulation parameters for one metric.
+type MetricDef struct {
+	Name        string
+	PhysicalMin float32
+	PhysicalMax float32
+	NormalMin   float32
+	NormalMax   float32
+	WarnAbove   *float32
+	WarnBelow   *float32
+	CritAbove   *float32
+	CritBelow   *float32
 }
 
-// metricState tracks the simulated current value for one metric.
 type metricState struct {
-	def     sqlc.MetricDefinition
+	def     MetricDef
 	current float64
 }
 
 func (ms *metricState) normalMid() float64 {
-	lo := f32OrDefault(ms.def.NormalMin, ms.def.PhysicalMin, 0)
-	hi := f32OrDefault(ms.def.NormalMax, ms.def.PhysicalMax, 100)
-	return (float64(lo) + float64(hi)) / 2.0
+	return (float64(ms.def.NormalMin) + float64(ms.def.NormalMax)) / 2.0
 }
 
 func (ms *metricState) normalRange() (float64, float64) {
-	lo := f32OrDefault(ms.def.NormalMin, ms.def.PhysicalMin, 0)
-	hi := f32OrDefault(ms.def.NormalMax, ms.def.PhysicalMax, 100)
-	return float64(lo), float64(hi)
+	return float64(ms.def.NormalMin), float64(ms.def.NormalMax)
 }
 
-// issueScenario forces one metric toward a threshold violation, then returns it to normal.
 type issueScenario struct {
 	metricName  string
-	targetValue float64 // push toward this (above/below a threshold)
-	returnTo    float64 // mid-point to recover to
-	pushing     bool    // true = ramping toward target; false = returning to normal
+	targetValue float64
+	returnTo    float64
+	pushing     bool
 	ticksLeft   int
 }
 
-// SimulationService generates realistic telemetry and writes it to the database.
+// SimulationService generates realistic telemetry and sends it via WebSocket.
+// It does not connect to the database.
 type SimulationService struct {
-	repo     SimulationRepository
-	registry *spec.RuleRegistry
-	engine   *spec.Engine
-	locoID   string
+	wsURL    string
+	locoID   uuid.UUID
 	interval time.Duration
+	defs     []MetricDef
 	states   map[string]*metricState
 	scenario *issueScenario
 	rng      *rand.Rand
 }
 
-// NewSimulationService creates a service wired to the given repository.
-// locoID is the locomotive identifier written into every DB row.
-// interval controls how often a tick fires (e.g. time.Second for 1 Hz).
-func NewSimulationService(repo SimulationRepository, locoID string, interval time.Duration) *SimulationService {
-	registry := spec.NewRuleRegistry()
-	engine := spec.NewEngine(registry, spec.ThresholdSpecification{})
+func NewSimulationService(wsURL string, locoID uuid.UUID, interval time.Duration, defs []MetricDef) *SimulationService {
 	return &SimulationService{
-		repo:     repo,
-		registry: registry,
-		engine:   engine,
+		wsURL:    wsURL,
 		locoID:   locoID,
 		interval: interval,
+		defs:     defs,
 		states:   make(map[string]*metricState),
 		rng:      rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 }
 
-// Run loads metric definitions from the DB, seeds locomotive, then starts
-// the simulation loop. Blocks until ctx is cancelled.
+// Run initialises metric states, connects to the WebSocket server and starts
+// sending TelemetryBatch frames until ctx is cancelled.
 func (s *SimulationService) Run(ctx context.Context) error {
-	defs, err := s.repo.ListMetricDefinitions(ctx)
-	if err != nil {
-		return fmt.Errorf("load metric definitions: %w", err)
+	if len(s.defs) == 0 {
+		return fmt.Errorf("no metric definitions provided")
 	}
-	if len(defs) == 0 {
-		return fmt.Errorf("no metric definitions found in DB; seed them first")
-	}
-
-	for i := range defs {
-		ms := &metricState{def: defs[i]}
+	for i := range s.defs {
+		ms := &metricState{def: s.defs[i]}
 		ms.current = ms.normalMid()
-		s.states[defs[i].Name] = ms
-	}
-	s.registry.Refresh(defs)
-
-	now := time.Now()
-	if _, err = s.repo.UpsertLocomotive(ctx, sqlc.UpsertLocomotiveParams{
-		ID:          s.locoID,
-		DisplayName: "Simulator-" + s.locoID,
-		LocoType:    "sim",
-		LastSeenAt:  &now,
-		Active:      true,
-	}); err != nil {
-		return fmt.Errorf("upsert locomotive: %w", err)
+		s.states[s.defs[i].Name] = ms
 	}
 
-	slog.Info("simulation started",
-		"loco_id", s.locoID,
-		"metrics", len(defs),
-		"interval", s.interval,
-	)
+	slog.Info("simulation started", "loco_id", s.locoID, "metrics", len(s.defs), "interval", s.interval)
+
+	conn, err := s.dialWithRetry(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 
 	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
 
-	nextScenario := 20 + s.rng.Intn(20) // ticks until the first scenario
+	nextScenario := 20 + s.rng.Intn(20)
 	for {
 		select {
 		case <-ctx.Done():
@@ -128,103 +104,79 @@ func (s *SimulationService) Run(ctx context.Context) error {
 				s.activateScenario()
 				nextScenario = 25 + s.rng.Intn(20)
 			}
-			if err := s.tick(ctx, t); err != nil {
-				slog.Error("tick error", "err", err)
+			if err := s.tick(conn, t); err != nil {
+				slog.Warn("tick failed, reconnecting", "err", err)
+				conn.Close()
+				conn, err = s.dialWithRetry(ctx)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
 }
 
-// tick executes one simulation step: evolve values → run engine → write DB.
-func (s *SimulationService) tick(ctx context.Context, t time.Time) error {
+func (s *SimulationService) dialWithRetry(ctx context.Context) (*websocket.Conn, error) {
+	for {
+		conn, err := s.dial(ctx)
+		if err == nil {
+			return conn, nil
+		}
+		slog.Warn("ws connect failed, retrying in 3s", "err", err)
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(3 * time.Second):
+		}
+	}
+}
+
+func (s *SimulationService) dial(ctx context.Context) (*websocket.Conn, error) {
+	dialer := websocket.Dialer{HandshakeTimeout: 5 * time.Second}
+	conn, _, err := dialer.DialContext(ctx, s.wsURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("dial %s: %w", s.wsURL, err)
+	}
+	slog.Info("ws: connected", "url", s.wsURL)
+	return conn, nil
+}
+
+func (s *SimulationService) tick(conn *websocket.Conn, t time.Time) error {
 	if s.scenario != nil {
 		s.stepScenario()
 	}
-
 	for _, ms := range s.states {
 		s.evolveMetric(ms)
 	}
 
 	metrics := make([]domain.Metric, 0, len(s.states))
-	metricsMap := make(map[string]float64, len(s.states))
 	for name, ms := range s.states {
 		metrics = append(metrics, domain.Metric{Name: name, Value: ms.current})
-		metricsMap[name] = ms.current
 	}
 
 	batch := domain.TelemetryBatch{LocoID: s.locoID, TS: t, Payload: metrics}
-	snapshot := s.engine.Process(batch)
-
-	metricsJSON, _ := json.Marshal(metricsMap)
-
-	if _, err := s.repo.InsertTelemetryEvent(ctx, sqlc.InsertTelemetryEventParams{
-		LocomotiveID: s.locoID,
-		Ts:           t,
-		Metrics:      metricsJSON,
-		Raw:          metricsJSON,
-	}); err != nil {
-		return fmt.Errorf("insert telemetry: %w", err)
+	payload, err := json.Marshal(batch)
+	if err != nil {
+		return fmt.Errorf("marshal batch: %w", err)
 	}
 
-	factorsJSON, _ := marshalFactors(snapshot.Issues)
-	if _, err := s.repo.InsertHealthSnapshot(ctx, sqlc.InsertHealthSnapshotParams{
-		LocomotiveID: s.locoID,
-		Ts:           t,
-		Score:        snapshot.Score,
-		Category:     stateCategory(snapshot.State),
-		Factors:      factorsJSON,
-		MetricsSnap:  metricsJSON,
-	}); err != nil {
-		return fmt.Errorf("insert health snapshot: %w", err)
+	conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	if err := conn.WriteMessage(websocket.TextMessage, payload); err != nil {
+		return fmt.Errorf("send batch: %w", err)
 	}
 
-	for _, issue := range snapshot.Issues {
-		if issue.Level == domain.LevelInfo {
-			continue
-		}
-		severity := "warning"
-		if issue.Level == domain.LevelCritical {
-			severity = "critical"
-		}
-		mn := issue.Target
-		var mv *float32
-		if ms, ok := s.states[issue.Target]; ok {
-			v := float32(ms.current)
-			mv = &v
-		}
-		if _, err := s.repo.InsertAlert(ctx, sqlc.InsertAlertParams{
-			LocomotiveID:   s.locoID,
-			Severity:       severity,
-			Code:           issue.Code,
-			MetricName:     &mn,
-			MetricValue:    mv,
-			Threshold:      nil,
-			Message:        issue.Message,
-			Recommendation: recommendationFor(issue.Code),
-		}); err != nil {
-			slog.Warn("insert alert failed", "err", err)
-		}
-	}
-
-	_, _ = s.repo.UpdateLocomotiveLastSeen(ctx, sqlc.UpdateLocomotiveLastSeenParams{
-		ID:         s.locoID,
-		LastSeenAt: &t,
-	})
-
-	slog.Debug("tick", "score", snapshot.Score, "state", snapshot.State.String(), "issues", len(snapshot.Issues))
+	slog.Debug("tick sent", "loco_id", s.locoID, "metrics", len(metrics))
 	return nil
 }
 
-// evolveMetric applies a random walk with mean-reversion toward the normal mid-point.
-// When an active scenario targets this metric, the value is driven toward the target.
 func (s *SimulationService) evolveMetric(ms *metricState) {
 	lo, hi := ms.normalRange()
 	span := hi - lo
 	if span <= 0 {
 		span = 1
 	}
-	delta := (s.rng.Float64()*2 - 1) * span * 0.01 // ±1 % of normal span
-	revert := (ms.normalMid() - ms.current) * 0.02 // 2 % pull toward centre
+	delta := (s.rng.Float64()*2 - 1) * span * 0.01
+	revert := (ms.normalMid() - ms.current) * 0.02
 
 	if s.scenario != nil && s.scenario.metricName == ms.def.Name && s.scenario.pushing {
 		drive := (s.scenario.targetValue - ms.current) * 0.15
@@ -233,8 +185,8 @@ func (s *SimulationService) evolveMetric(ms *metricState) {
 		ms.current += delta + revert
 	}
 
-	physLo := float64(f32OrVal(ms.def.PhysicalMin, -1e9))
-	physHi := float64(f32OrVal(ms.def.PhysicalMax, 1e9))
+	physLo := float64(ms.def.PhysicalMin)
+	physHi := float64(ms.def.PhysicalMax)
 	if ms.current < physLo {
 		ms.current = physLo
 	}
@@ -243,7 +195,6 @@ func (s *SimulationService) evolveMetric(ms *metricState) {
 	}
 }
 
-// activateScenario picks one metric with a threshold and starts driving it there.
 func (s *SimulationService) activateScenario() {
 	type candidate struct {
 		name   string
@@ -272,13 +223,11 @@ func (s *SimulationService) activateScenario() {
 	c := pool[s.rng.Intn(len(pool))]
 	ms := s.states[c.name]
 
-	physLo := float64(f32OrVal(ms.def.PhysicalMin, -1e9))
-	physHi := float64(f32OrVal(ms.def.PhysicalMax, 1e9))
-	if c.target > physHi {
-		c.target = physHi
+	if c.target > float64(ms.def.PhysicalMax) {
+		c.target = float64(ms.def.PhysicalMax)
 	}
-	if c.target < physLo {
-		c.target = physLo
+	if c.target < float64(ms.def.PhysicalMin) {
+		c.target = float64(ms.def.PhysicalMin)
 	}
 
 	s.scenario = &issueScenario{
@@ -291,13 +240,10 @@ func (s *SimulationService) activateScenario() {
 	slog.Info("scenario activated", "metric", c.name, "target", c.target)
 }
 
-// stepScenario advances the active scenario by one tick.
 func (s *SimulationService) stepScenario() {
 	scen := s.scenario
 	scen.ticksLeft--
-
 	if scen.pushing && scen.ticksLeft <= 0 {
-		// Begin recovery phase.
 		scen.pushing = false
 		scen.targetValue = scen.returnTo
 		scen.ticksLeft = 8 + s.rng.Intn(7)
@@ -308,83 +254,4 @@ func (s *SimulationService) stepScenario() {
 		slog.Info("scenario finished", "metric", scen.metricName)
 		s.scenario = nil
 	}
-}
-
-// marshalFactors converts issues to the JSONB format stored in health_snapshots.factors.
-func marshalFactors(issues []domain.Issue) ([]byte, error) {
-	type factor struct {
-		Code   string  `json:"code"`
-		Level  string  `json:"level"`
-		Metric string  `json:"metric"`
-		Msg    string  `json:"msg"`
-		Weight float32 `json:"weight"`
-	}
-	slice := make([]factor, len(issues))
-	for i, iss := range issues {
-		slice[i] = factor{
-			Code:   iss.Code,
-			Level:  iss.Level.String(),
-			Metric: iss.Target,
-			Msg:    iss.Message,
-			Weight: iss.HealthWeight,
-		}
-	}
-	return json.Marshal(slice)
-}
-
-func stateCategory(state spec.LocoState) string {
-	switch state {
-	case spec.StateEmergency:
-		return "critical"
-	case spec.StateDegraded, spec.StateMaintenance:
-		return "warning"
-	default:
-		return "normal"
-	}
-}
-
-// f32OrDefault returns the value of the first non-nil pointer, or the second,
-// or the hard fallback.
-func f32OrDefault(primary, secondary *float32, fallback float32) float32 {
-	if primary != nil {
-		return *primary
-	}
-	if secondary != nil {
-		return *secondary
-	}
-	return fallback
-}
-
-func f32OrVal(p *float32, def float32) float32 {
-	if p != nil {
-		return *p
-	}
-	return def
-}
-
-func recommendationFor(code string) string {
-	recs := map[string]string{
-		"CRIT_ABOVE_ENGINE_TEMP_C":      "Снизить скорость, проверить охлаждение",
-		"WARN_ABOVE_ENGINE_TEMP_C":      "Снизить нагрузку, следить за температурой",
-		"CRIT_BELOW_BRAKE_PRESSURE_BAR": "Немедленная остановка",
-		"WARN_BELOW_BRAKE_PRESSURE_BAR": "Проверить тормозную систему",
-		"CRIT_BELOW_FUEL_LEVEL_PCT":     "Срочная заправка",
-		"WARN_BELOW_FUEL_LEVEL_PCT":     "Запланировать заправку",
-		"CRIT_BELOW_OIL_PRESSURE_BAR":   "Остановить двигатель, проверить масло",
-		"WARN_BELOW_OIL_PRESSURE_BAR":   "Проверить уровень масла",
-		"CRIT_ABOVE_TRACTION_AMPS":      "Снизить тяговое усилие немедленно",
-		"WARN_ABOVE_TRACTION_AMPS":      "Снизить тяговое усилие",
-		"CRIT_ABOVE_VOLTAGE_V":          "Проверить генераторы",
-		"CRIT_BELOW_VOLTAGE_V":          "Проверить источники питания",
-		"WARN_ABOVE_VOLTAGE_V":          "Проверить генераторы",
-		"WARN_BELOW_VOLTAGE_V":          "Проверить источники питания",
-		"CRIT_ABOVE_SPEED_KMH":          "Снизить скорость немедленно",
-		"WARN_ABOVE_SPEED_KMH":          "Снизить скорость",
-		"CRIT_ABOVE_AXLE_TEMP_C":        "Остановить поезд, проверить буксы",
-		"WARN_ABOVE_AXLE_TEMP_C":        "Снизить скорость, следить за буксами",
-	}
-	if r, ok := recs[code]; ok {
-		return r
-	}
-	return "Обратитесь к технику"
 }
