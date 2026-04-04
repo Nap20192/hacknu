@@ -1,0 +1,40 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: timescale/timescaledb:latest-pg15
+    container_name: hacknu_postgres
+    environment:
+      POSTGRES_USER: loco
+      POSTGRES_PASSWORD: loco_secret
+      POSTGRES_DB: loco_twin
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U loco -d loco_twin"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  simulation:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hacknu_simulation
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://loco:loco_secret@postgres:5432/loco_twin?sslmode=disable
+      MIGRATIONS_PATH: db/migrations
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./metrics.yaml:/app/metrics.yaml
+      - ./db/migrations:/app/db/migrations
+    command: ["go", "run", "./cmd/simulation/main.go"]
+
+volumes:
+  postgres_data:
