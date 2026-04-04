@@ -21,7 +21,7 @@ services:
   simulation:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: ./cmd/simulation/Dockerfile
     container_name: hacknu_simulation
     env_file:
       - .env
@@ -31,10 +31,21 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    volumes:
-      - ./metrics.yaml:/app/metrics.yaml
-      - ./db/migrations:/app/db/migrations
-    command: ["go", "run", "./cmd/simulation/main.go"]
+
+  alerts:
+    build:
+      context: .
+      dockerfile: ./cmd/alerts/Dockerfile
+    container_name: hacknu_alerts
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://loco:loco_secret@postgres:5432/loco_twin?sslmode=disable
+    ports:
+      - "8081:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
   postgres_data:

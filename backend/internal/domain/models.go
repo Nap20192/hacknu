@@ -37,7 +37,7 @@ func (l IssueLevel) String() string {
 
 // Issue describes a single detected problem for a metric.
 type Issue struct {
-	Code         string     // unique rule code, e.g. "CRIT_ABOVE_ENGINE_TEMP"
+	Code         string // unique rule code, e.g. "CRIT_ABOVE_ENGINE_TEMP"
 	Level        IssueLevel
 	Target       string  // metric name that triggered the issue
 	Message      string  // human-readable description for logs / UI

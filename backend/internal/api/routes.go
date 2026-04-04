@@ -20,11 +20,6 @@ func registerRoutes(app *fiber.App, q *sqlc.Queries) {
 	locos.Get("/:id/health", getLatestHealth(q))
 	locos.Get("/:id/health/history", listHealthHistory(q))
 
-	// ── Alerts ───────────────────────────────────────────────────────────────
-	locos.Get("/:id/alerts", listActiveAlerts(q))
-	locos.Get("/:id/alerts/history", listAlertsHistory(q))
-	v1.Post("/alerts/:alertId/acknowledge", acknowledgeAlert(q))
-
 	// ── Metric definitions ───────────────────────────────────────────────────
 	metrics := v1.Group("/metrics/definitions")
 	metrics.Get("/", listMetricDefs(q))
@@ -137,89 +132,6 @@ func listHealthHistory(q *sqlc.Queries) fiber.Handler {
 	}
 }
 
-// ── Alert handlers ────────────────────────────────────────────────────────────
-
-// listActiveAlerts godoc
-//
-//	@Summary		List active (unresolved) alerts for a locomotive
-//	@Tags			alerts
-//	@Produce		json
-//	@Param			id	path		string	true	"Locomotive ID"
-//	@Success		200	{object}	PagedResponse[AlertDTO]
-//	@Failure		500	{object}	Response[any]
-//	@Router			/api/v1/locomotives/{id}/alerts [get]
-func listActiveAlerts(q *sqlc.Queries) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		rows, err := q.ListActiveAlertsByLocomotive(c.Context(), c.Params("id"))
-		if err != nil {
-			return c.Status(500).JSON(Response[any]{Error: err.Error()})
-		}
-		dtos := make([]AlertDTO, len(rows))
-		for i, r := range rows {
-			dtos[i] = alertToDTO(r)
-		}
-		return c.JSON(PagedResponse[AlertDTO]{Success: true, Data: dtos, Total: len(dtos)})
-	}
-}
-
-// listAlertsHistory godoc
-//
-//	@Summary		List alerts in a time range
-//	@Tags			alerts
-//	@Produce		json
-//	@Param			id		path		string	true	"Locomotive ID"
-//	@Param			from	query		string	false	"RFC3339 start time"
-//	@Param			to		query		string	false	"RFC3339 end time"
-//	@Success		200		{object}	PagedResponse[AlertDTO]
-//	@Failure		400		{object}	Response[any]
-//	@Failure		500		{object}	Response[any]
-//	@Router			/api/v1/locomotives/{id}/alerts/history [get]
-func listAlertsHistory(q *sqlc.Queries) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		from, to, _, err := parseTimeRange(c)
-		if err != nil {
-			return c.Status(400).JSON(Response[any]{Error: err.Error()})
-		}
-		rows, err := q.ListAlertsByLocomotiveRange(c.Context(), sqlc.ListAlertsByLocomotiveRangeParams{
-			LocomotiveID:  c.Params("id"),
-			TriggeredAt:   from,
-			TriggeredAt_2: to,
-		})
-		if err != nil {
-			return c.Status(500).JSON(Response[any]{Error: err.Error()})
-		}
-		dtos := make([]AlertDTO, len(rows))
-		for i, r := range rows {
-			dtos[i] = alertToDTO(r)
-		}
-		return c.JSON(PagedResponse[AlertDTO]{Success: true, Data: dtos, Total: len(dtos)})
-	}
-}
-
-// acknowledgeAlert godoc
-//
-//	@Summary		Acknowledge an alert by ID
-//	@Tags			alerts
-//	@Produce		json
-//	@Param			alertId	path		int		true	"Alert ID"
-//	@Success		200		{object}	Response[AlertDTO]
-//	@Failure		400		{object}	Response[any]
-//	@Failure		500		{object}	Response[any]
-//	@Router			/api/v1/alerts/{alertId}/acknowledge [post]
-func acknowledgeAlert(q *sqlc.Queries) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		id, err := c.ParamsInt("alertId")
-		if err != nil {
-			return c.Status(400).JSON(Response[any]{Error: "invalid alert id"})
-		}
-		row, err := q.AcknowledgeAlert(c.Context(), int64(id))
-		if err != nil {
-			return c.Status(500).JSON(Response[any]{Error: err.Error()})
-		}
-		return c.JSON(Response[AlertDTO]{Success: true, Data: alertToDTO(row)})
-	}
-}
-
 // ── Metric definition handlers ────────────────────────────────────────────────
 
 // listMetricDefs godoc
@@ -293,23 +205,6 @@ func locoToDTO(r sqlc.Locomotive) LocomotiveDTO {
 		RegisteredAt: r.RegisteredAt,
 		LastSeenAt:   r.LastSeenAt,
 		Active:       r.Active,
-	}
-}
-
-func alertToDTO(r sqlc.Alert) AlertDTO {
-	return AlertDTO{
-		ID:             r.ID,
-		LocomotiveID:   r.LocomotiveID,
-		TriggeredAt:    r.TriggeredAt,
-		ResolvedAt:     r.ResolvedAt,
-		Severity:       r.Severity,
-		Code:           r.Code,
-		MetricName:     r.MetricName,
-		MetricValue:    r.MetricValue,
-		Threshold:      r.Threshold,
-		Message:        r.Message,
-		Recommendation: r.Recommendation,
-		Acknowledged:   r.Acknowledged,
 	}
 }
 

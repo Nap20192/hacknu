@@ -13,29 +13,29 @@ type Response[T any] struct {
 
 // PagedResponse wraps paginated results.
 type PagedResponse[T any] struct {
-	Success bool  `json:"success"`
-	Data    []T   `json:"data"`
-	Total   int   `json:"total"`
+	Success bool `json:"success"`
+	Data    []T  `json:"data"`
+	Total   int  `json:"total"`
 }
 
 // ---- health snapshot ----
 
 // HealthSnapshotDTO is the API representation of a diagnostic cycle result.
 type HealthSnapshotDTO struct {
-	LocomotiveID string        `json:"locomotive_id"`
-	Ts           time.Time     `json:"ts"`
-	State        string        `json:"state"`
-	Score        int16         `json:"score"`
-	Category     string        `json:"category"`
-	Issues       []IssueDTO    `json:"issues"`
+	LocomotiveID string     `json:"locomotive_id"`
+	Ts           time.Time  `json:"ts"`
+	State        string     `json:"state"`
+	Score        int16      `json:"score"`
+	Category     string     `json:"category"`
+	Issues       []IssueDTO `json:"issues"`
 }
 
 // IssueDTO represents one detected problem.
 type IssueDTO struct {
-	Code         string `json:"code"`
-	Level        string `json:"level"`
-	Target       string `json:"target"`
-	Message      string `json:"message"`
+	Code         string  `json:"code"`
+	Level        string  `json:"level"`
+	Target       string  `json:"target"`
+	Message      string  `json:"message"`
 	HealthWeight float32 `json:"health_weight"`
 }
 
@@ -53,24 +53,6 @@ type TelemetryBatchRequest struct {
 type MetricFrame struct {
 	Name  string  `json:"n"`
 	Value float64 `json:"v"`
-}
-
-// ---- alerts ----
-
-// AlertDTO is the API representation of a DB alert.
-type AlertDTO struct {
-	ID             int64      `json:"id"`
-	LocomotiveID   string     `json:"locomotive_id"`
-	TriggeredAt    time.Time  `json:"triggered_at"`
-	ResolvedAt     *time.Time `json:"resolved_at,omitempty"`
-	Severity       string     `json:"severity"`
-	Code           string     `json:"code"`
-	MetricName     *string    `json:"metric_name,omitempty"`
-	MetricValue    *float32   `json:"metric_value,omitempty"`
-	Threshold      *float32   `json:"threshold,omitempty"`
-	Message        string     `json:"message"`
-	Recommendation string     `json:"recommendation"`
-	Acknowledged   bool       `json:"acknowledged"`
 }
 
 // ---- locomotives ----

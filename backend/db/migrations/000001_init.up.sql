@@ -47,7 +47,7 @@ CREATE TABLE locomotives (
 -- metrics JSONB: {"speed_kmh": 45.2, "engine_temp_c": 87.1, ...}
 -- =============================================================
 CREATE TABLE telemetry_events (
-    id BIGSERIAL PRIMARY KEY,
+    id BIGSERIAL,
     locomotive_id TEXT NOT NULL,
     ts TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     metrics JSONB NOT NULL DEFAULT '{}',
@@ -57,13 +57,14 @@ CREATE TABLE telemetry_events (
 -- sqlc:ignore
 DO $$
 BEGIN
-    PERFORM create_hypertable('telemetry_events', 'ts');
+    PERFORM create_hypertable('telemetry_events', 'ts', if_not_exists => TRUE);
 EXCEPTION
     WHEN undefined_function THEN
         RAISE NOTICE 'create_hypertable not available, skipping';
 END
 $$;
 
+CREATE UNIQUE INDEX idx_tel_id_ts ON telemetry_events (id, ts);
 CREATE INDEX idx_tel_loco_ts ON telemetry_events (locomotive_id, ts DESC);
 
 CREATE INDEX idx_tel_metrics_gin ON telemetry_events USING GIN (metrics);
@@ -72,7 +73,7 @@ CREATE INDEX idx_tel_metrics_gin ON telemetry_events USING GIN (metrics);
 -- HEALTH SNAPSHOTS  (TimescaleDB hypertable)
 -- =============================================================
 CREATE TABLE health_snapshots (
-    id BIGSERIAL PRIMARY KEY,
+    id BIGSERIAL,
     locomotive_id TEXT NOT NULL,
     ts TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     score SMALLINT NOT NULL CHECK (score BETWEEN 0 AND 100),
@@ -90,13 +91,14 @@ CREATE TABLE health_snapshots (
 -- sqlc:ignore
 DO $$
 BEGIN
-    PERFORM create_hypertable('health_snapshots', 'ts');
+    PERFORM create_hypertable('health_snapshots', 'ts', if_not_exists => TRUE);
 EXCEPTION
     WHEN undefined_function THEN
         RAISE NOTICE 'create_hypertable not available, skipping';
 END
 $$;
 
+CREATE UNIQUE INDEX idx_health_id_ts ON health_snapshots (id, ts);
 CREATE INDEX idx_health_loco_ts ON health_snapshots (locomotive_id, ts DESC);
 
 -- =============================================================
