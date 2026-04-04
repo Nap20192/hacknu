@@ -1,0 +1,33 @@
+# Go
+backend/vendor/
+backend/*.test
+backend/tmp/
+
+# Env
+.env
+.env.local
+*.env
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/.next/
+
+# OS
+.DS_Store
+*.swp
+*.swo
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Logs
+*.log
+
+# Docker
+.docker/
+
+# Build artifacts
+backend/bin/

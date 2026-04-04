@@ -1,0 +1,131 @@
+version: "1"
+
+health:
+  thresholds:
+    normal:  75
+    warning: 50
+  alert_penalty:     5.0
+  alert_penalty_max: 20.0
+
+metrics:
+  - name: speed_kmh
+    display: "Скорость"
+    unit: "км/ч"
+    group: "motion"
+    physical: { min: 0,   max: 300 }
+    normal:   { min: 0,   max: 120 }
+    thresholds:
+      warn_above:     120
+      critical_above: 160
+    health_weight: 0.10
+    ema_alpha: 0.2
+    display_opts: { chart: true, gauge: true, precision: 1, color_scheme: "speed" }
+
+  - name: engine_temp_c
+    display: "Температура двигателя"
+    unit: "°C"
+    group: "thermal"
+    physical: { min: -40, max: 200 }
+    normal:   { min: 60,  max: 95  }
+    thresholds:
+      warn_above:     95
+      critical_above: 110
+    health_weight: 0.20
+    ema_alpha: 0.05
+    display_opts: { chart: true, gauge: false, precision: 1, color_scheme: "thermal" }
+
+  - name: brake_pressure_bar
+    display: "Давление тормозов"
+    unit: "бар"
+    group: "brakes"
+    physical: { min: 0, max: 10 }
+    normal:   { min: 5.0, max: 9.0 }
+    thresholds:
+      warn_below:     4.5
+      critical_below: 3.0
+    health_weight: 0.25
+    ema_alpha: 0.1
+    display_opts: { chart: true, gauge: true, precision: 2, color_scheme: "pressure", invert_colors: true }
+
+  - name: fuel_level_pct
+    display: "Уровень топлива"
+    unit: "%"
+    group: "fuel"
+    physical: { min: 0,  max: 100 }
+    normal:   { min: 20, max: 100 }
+    thresholds:
+      warn_below:     20
+      critical_below: 10
+    health_weight: 0.15
+    ema_alpha: 0.3
+    display_opts: { chart: true, gauge: true, precision: 0, color_scheme: "fuel" }
+
+  - name: oil_pressure_bar
+    display: "Давление масла"
+    unit: "бар"
+    group: "engine"
+    physical: { min: 0, max: 10 }
+    normal:   { min: 3.5, max: 7.0 }
+    thresholds:
+      warn_below:     3.0
+      critical_below: 2.0
+    health_weight: 0.15
+    ema_alpha: 0.1
+    display_opts: { chart: true, gauge: false, precision: 2, color_scheme: "pressure", invert_colors: true }
+
+  - name: traction_amps
+    display: "Ток тяги"
+    unit: "А"
+    group: "electric"
+    physical: { min: 0, max: 1000 }
+    normal:   { min: 0, max: 600  }
+    thresholds:
+      warn_above:     600
+      critical_above: 750
+    health_weight: 0.10
+    ema_alpha: 0.15
+    display_opts: { chart: true, gauge: false, precision: 0, color_scheme: "electric" }
+
+  - name: voltage_v
+    display: "Напряжение"
+    unit: "В"
+    group: "electric"
+    physical: { min: 50,  max: 200 }
+    normal:   { min: 95,  max: 130 }
+    thresholds:
+      warn_below:     90
+      warn_above:     135
+      critical_below: 80
+      critical_above: 150
+    health_weight: 0.05
+    ema_alpha: 0.2
+    display_opts: { chart: true, gauge: false, precision: 1, color_scheme: "electric" }
+
+  - name: axle_temp_c
+    display: "Температура букс"
+    unit: "°C"
+    group: "thermal"
+    physical: { min: -40, max: 200 }
+    normal:   { min: -20, max: 60  }
+    thresholds:
+      warn_above:     60
+      critical_above: 80
+    health_weight: 0.0
+    ema_alpha: 0.05
+    display_opts: { chart: true, gauge: false, precision: 1, color_scheme: "thermal" }
+
+groups:
+  - { id: "motion",   title: "Движение",    icon: "speed",       metrics: ["speed_kmh"] }
+  - { id: "thermal",  title: "Температуры", icon: "thermometer", metrics: ["engine_temp_c", "axle_temp_c"] }
+  - { id: "brakes",   title: "Тормоза",     icon: "brake",       metrics: ["brake_pressure_bar"] }
+  - { id: "fuel",     title: "Топливо",     icon: "fuel",        metrics: ["fuel_level_pct"] }
+  - { id: "engine",   title: "Двигатель",   icon: "engine",      metrics: ["oil_pressure_bar"] }
+  - { id: "electric", title: "Электрика",   icon: "lightning",   metrics: ["traction_amps", "voltage_v"] }
+
+alert_codes:
+  HIGH_TEMP:   { display: "Перегрев двигателя",              severity: critical, recommendation: "Снизить скорость, проверить охлаждение" }
+  LOW_BRAKE:   { display: "Низкое давление тормозов",        severity: critical, recommendation: "Немедленная остановка" }
+  LOW_FUEL:    { display: "Низкий уровень топлива",          severity: warning,  recommendation: "Запланировать заправку" }
+  LOW_OIL:     { display: "Низкое давление масла",           severity: critical, recommendation: "Остановить двигатель, проверить масло" }
+  OVERVOLTAGE: { display: "Перенапряжение сети",             severity: warning,  recommendation: "Проверить генераторы" }
+  OVERLOAD:    { display: "Перегрузка тяговых двигателей",   severity: warning,  recommendation: "Снизить тяговое усилие" }
