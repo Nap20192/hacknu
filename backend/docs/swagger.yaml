@@ -1,0 +1,412 @@
+basePath: /
+definitions:
+  api.AlertDTO:
+    properties:
+      acknowledged:
+        type: boolean
+      code:
+        type: string
+      id:
+        type: integer
+      locomotive_id:
+        type: string
+      message:
+        type: string
+      metric_name:
+        type: string
+      metric_value:
+        type: number
+      recommendation:
+        type: string
+      resolved_at:
+        type: string
+      severity:
+        type: string
+      threshold:
+        type: number
+      triggered_at:
+        type: string
+    type: object
+  api.LocomotiveDTO:
+    properties:
+      active:
+        type: boolean
+      display_name:
+        type: string
+      id:
+        type: string
+      last_seen_at:
+        type: string
+      loco_type:
+        type: string
+      registered_at:
+        type: string
+    type: object
+  api.MetricDefinitionDTO:
+    properties:
+      crit_above:
+        type: number
+      crit_below:
+        type: number
+      description:
+        type: string
+      display:
+        type: string
+      health_weight:
+        type: number
+      name:
+        type: string
+      unit:
+        type: string
+      warn_above:
+        type: number
+      warn_below:
+        type: number
+    type: object
+  api.PagedResponse-api_AlertDTO:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/api.AlertDTO'
+        type: array
+      success:
+        type: boolean
+      total:
+        type: integer
+    type: object
+  api.PagedResponse-api_LocomotiveDTO:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/api.LocomotiveDTO'
+        type: array
+      success:
+        type: boolean
+      total:
+        type: integer
+    type: object
+  api.PagedResponse-api_MetricDefinitionDTO:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/api.MetricDefinitionDTO'
+        type: array
+      success:
+        type: boolean
+      total:
+        type: integer
+    type: object
+  api.PagedResponse-sqlc_HealthSnapshot:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/sqlc.HealthSnapshot'
+        type: array
+      success:
+        type: boolean
+      total:
+        type: integer
+    type: object
+  api.Response-any:
+    properties:
+      data: {}
+      error:
+        type: string
+      success:
+        type: boolean
+    type: object
+  api.Response-api_AlertDTO:
+    properties:
+      data:
+        $ref: '#/definitions/api.AlertDTO'
+      error:
+        type: string
+      success:
+        type: boolean
+    type: object
+  api.Response-api_LocomotiveDTO:
+    properties:
+      data:
+        $ref: '#/definitions/api.LocomotiveDTO'
+      error:
+        type: string
+      success:
+        type: boolean
+    type: object
+  api.Response-api_MetricDefinitionDTO:
+    properties:
+      data:
+        $ref: '#/definitions/api.MetricDefinitionDTO'
+      error:
+        type: string
+      success:
+        type: boolean
+    type: object
+  api.Response-sqlc_HealthSnapshot:
+    properties:
+      data:
+        $ref: '#/definitions/sqlc.HealthSnapshot'
+      error:
+        type: string
+      success:
+        type: boolean
+    type: object
+  sqlc.HealthSnapshot:
+    properties:
+      category:
+        type: string
+      factors:
+        items:
+          type: integer
+        type: array
+      id:
+        type: integer
+      locomotive_id:
+        type: string
+      metrics_snap:
+        items:
+          type: integer
+        type: array
+      score:
+        type: integer
+      ts:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    name: HackNU Team
+  description: Real-time telemetry ingestion, health scoring, and diagnostic REST
+    API.
+  title: Locomotive Digital Twin API
+  version: "1.0"
+paths:
+  /api/v1/alerts/{alertId}/acknowledge:
+    post:
+      parameters:
+      - description: Alert ID
+        in: path
+        name: alertId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.Response-api_AlertDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.Response-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.Response-any'
+      summary: Acknowledge an alert by ID
+      tags:
+      - alerts
+  /api/v1/locomotives:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.PagedResponse-api_LocomotiveDTO'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.Response-any'
+      summary: List all locomotives
+      tags:
+      - locomotives
+  /api/v1/locomotives/{id}:
+    get:
+      parameters:
+      - description: Locomotive ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.Response-api_LocomotiveDTO'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.Response-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.Response-any'
+      summary: Get locomotive by ID
+      tags:
+      - locomotives
+  /api/v1/locomotives/{id}/alerts:
+    get:
+      parameters:
+      - description: Locomotive ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.PagedResponse-api_AlertDTO'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.Response-any'
+      summary: List active (unresolved) alerts for a locomotive
+      tags:
+      - alerts
+  /api/v1/locomotives/{id}/alerts/history:
+    get:
+      parameters:
+      - description: Locomotive ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: RFC3339 start time
+        in: query
+        name: from
+        type: string
+      - description: RFC3339 end time
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.PagedResponse-api_AlertDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.Response-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.Response-any'
+      summary: List alerts in a time range
+      tags:
+      - alerts
+  /api/v1/locomotives/{id}/health:
+    get:
+      parameters:
+      - description: Locomotive ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.Response-sqlc_HealthSnapshot'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.Response-any'
+      summary: Get latest health snapshot for a locomotive
+      tags:
+      - health
+  /api/v1/locomotives/{id}/health/history:
+    get:
+      parameters:
+      - description: Locomotive ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: RFC3339 start time
+        in: query
+        name: from
+        type: string
+      - description: RFC3339 end time
+        in: query
+        name: to
+        type: string
+      - description: Max records (default 100)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.PagedResponse-sqlc_HealthSnapshot'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.Response-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.Response-any'
+      summary: List health snapshots in a time range
+      tags:
+      - health
+  /api/v1/metrics/definitions:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.PagedResponse-api_MetricDefinitionDTO'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.Response-any'
+      summary: List all metric definitions
+      tags:
+      - metrics
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Metric definition
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/api.MetricDefinitionDTO'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.Response-api_MetricDefinitionDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.Response-any'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.Response-any'
+      summary: Create or update a metric definition
+      tags:
+      - metrics
+swagger: "2.0"
