@@ -9,16 +9,16 @@ CREATE TABLE metric_definitions (
     display TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
     unit TEXT NOT NULL,
-    physical_min FLOAT,
-    physical_max FLOAT,
-    normal_min FLOAT,
-    normal_max FLOAT,
-    warn_above FLOAT,
-    warn_below FLOAT,
-    crit_above FLOAT,
-    crit_below FLOAT,
-    health_weight FLOAT NOT NULL DEFAULT 0.0,
-    ema_alpha FLOAT NOT NULL DEFAULT 0.1 CHECK (ema_alpha BETWEEN 0 AND 1),
+    physical_min real,
+    physical_max real,
+    normal_min real,
+    normal_max real,
+    warn_above real,
+    warn_below real,
+    crit_above real,
+    crit_below real,
+    health_weight real NOT NULL DEFAULT 0.0,
+    ema_alpha real NOT NULL DEFAULT 0.1 CHECK (ema_alpha BETWEEN 0 AND 1),
     display_opts JSONB NOT NULL DEFAULT '{}',
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -40,7 +40,7 @@ CREATE TABLE locomotives (
 -- metrics JSONB: {"speed_kmh": 45.2, "engine_temp_c": 87.1, ...}
 -- =============================================================
 CREATE TABLE telemetry_events (
-    id BIGSERIAL,
+    id BIGSERIAL PRIMARY KEY,
     locomotive_id TEXT NOT NULL,
     ts TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     metrics JSONB NOT NULL DEFAULT '{}',
@@ -58,7 +58,7 @@ CREATE INDEX idx_tel_metrics_gin ON telemetry_events USING GIN (metrics);
 -- HEALTH SNAPSHOTS  (TimescaleDB hypertable)
 -- =============================================================
 CREATE TABLE health_snapshots (
-    id BIGSERIAL,
+    id BIGSERIAL PRIMARY KEY,
     locomotive_id TEXT NOT NULL,
     ts TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     score SMALLINT NOT NULL CHECK (score BETWEEN 0 AND 100),
@@ -91,8 +91,8 @@ CREATE TABLE alerts (
     ),
     code TEXT NOT NULL,
     metric_name TEXT REFERENCES metric_definitions (name) ON DELETE SET NULL,
-    metric_value FLOAT,
-    threshold FLOAT,
+    metric_value real,
+    threshold real,
     message TEXT NOT NULL,
     recommendation TEXT NOT NULL DEFAULT '',
     acknowledged BOOLEAN NOT NULL DEFAULT FALSE

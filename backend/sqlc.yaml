@@ -56,9 +56,13 @@ overrides:
           pointer: true
 
       - db_type: "real"
+        go_type:
+          type: "float32"
+          pointer: true
+      - db_type: "real"
         nullable: true
         go_type:
-          type: "float64"
+          type: "float32"
           pointer: true
 
       # any
@@ -66,6 +70,36 @@ overrides:
         nullable: true
         go_type:
           type: "any"
+
+      - db_type: "pg_catalog.float4"
+        go_type: "float32"
+      - db_type: "pg_catalog.float4"
+        nullable: true
+        go_type:
+          type: "float32"
+          pointer: true
+
+      # Для BIGSERIAL / BIGINT (int8)
+      - db_type: "pg_catalog.int8"
+        go_type: "int64"
+      - db_type: "pg_catalog.int8"
+        nullable: true
+        go_type:
+          type: "int64"
+          pointer: true
+
+      # Для TIMESTAMPTZ
+      - db_type: "pg_catalog.timestamptz"
+        go_type:
+          import: "time"
+          type: "Time"
+      - db_type: "pg_catalog.timestamptz"
+        nullable: true
+        go_type:
+          import: "time"
+          type: "Time"
+          pointer: true
+
 
 sql:
   - engine: "postgresql"

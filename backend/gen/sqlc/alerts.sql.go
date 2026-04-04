@@ -8,8 +8,6 @@ package sqlc
 import (
 	"context"
 	"time"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const acknowledgeAlert = `-- name: AcknowledgeAlert :one
@@ -92,14 +90,14 @@ RETURNING
 `
 
 type InsertAlertParams struct {
-	LocomotiveID   string        `json:"locomotive_id"`
-	Severity       string        `json:"severity"`
-	Code           string        `json:"code"`
-	MetricName     *string       `json:"metric_name"`
-	MetricValue    pgtype.Float8 `json:"metric_value"`
-	Threshold      pgtype.Float8 `json:"threshold"`
-	Message        string        `json:"message"`
-	Recommendation string        `json:"recommendation"`
+	LocomotiveID   string   `json:"locomotive_id"`
+	Severity       string   `json:"severity"`
+	Code           string   `json:"code"`
+	MetricName     *string  `json:"metric_name"`
+	MetricValue    *float32 `json:"metric_value"`
+	Threshold      *float32 `json:"threshold"`
+	Message        string   `json:"message"`
+	Recommendation string   `json:"recommendation"`
 }
 
 // ALERTS
