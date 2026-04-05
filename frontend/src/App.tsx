@@ -1,16 +1,19 @@
 import { useState } from 'react'
 import { useLocomotives } from './hooks/useLocomotives'
 import { useTelemetry } from './hooks/useTelemetry'
+import { useTheme } from './hooks/useTheme'
 import { HealthIndex } from './components/HealthIndex'
 import { MetricsGrid } from './components/MetricsGrid'
 import { IssuesPanel } from './components/IssuesPanel'
 import { AlertsPanel } from './components/AlertsPanel'
 import { ConnectionBadge } from './components/ConnectionBadge'
+import { ThemeToggle } from './components/ThemeToggle'
 import './App.css'
 
 export default function App() {
   const { locomotives, loading } = useLocomotives()
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const { theme, toggleTheme } = useTheme()
 
   const locoId = selectedId ?? (locomotives.length > 0 ? locomotives[0].id : null)
   const { latest, history, wsStatus } = useTelemetry(locoId)
@@ -18,7 +21,7 @@ export default function App() {
   const selectedLoco = locomotives.find((l) => l.id === locoId)
 
   return (
-    <div className="app dark">
+    <div className={`app ${theme}`}>
       <header className="app-header">
         <div className="header-left">
           <span className="app-logo">🚂</span>
@@ -47,6 +50,7 @@ export default function App() {
               {new Date(latest.ts).toLocaleTimeString('ru-RU')}
             </span>
           )}
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
       </header>
 

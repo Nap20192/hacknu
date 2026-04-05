@@ -1,6 +1,6 @@
 import type { Alert, PagedResponse, Response } from '../types/alerts';
 
-const API_BASE_URL = '';
+const API_BASE_URL = 'http://localhost:8080'; // This should ideally come from an environment variable
 
 export const alertsApi = {
   /**

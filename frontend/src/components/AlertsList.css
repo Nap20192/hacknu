@@ -12,7 +12,7 @@
 .alerts-header h2 {
   margin: 0;
   font-size: 24px;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .alerts-list {
@@ -28,39 +28,41 @@
   padding: 40px 20px;
   text-align: center;
   font-size: 16px;
-  color: #666;
-  background: #f5f5f5;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: 8px;
 }
 
 .alerts-error {
-  background-color: #fee;
-  color: #c33;
-  border: 1px solid #fcc;
+  background-color: rgba(239, 68, 68, 0.07);
+  color: var(--accent-red);
+  border-color: var(--accent-red);
 }
 
 /* Alert Card */
 .alert-card {
-  background: white;
-  border-left: 4px solid #ffeb3b;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--border);
   border-radius: 8px;
   padding: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   transition: all 0.2s ease;
 }
 
 .alert-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .alert-card.severity-warning {
-  border-left-color: #ffb74d;
-  background-color: #fffaf0;
+  border-left-color: var(--accent-yellow);
+  background-color: rgba(245, 158, 11, 0.07);
 }
 
 .alert-card.severity-critical {
-  border-left-color: #ef5350;
-  background-color: #ffebee;
+  border-left-color: var(--accent-red);
+  background-color: rgba(239, 68, 68, 0.07);
 }
 
 /* Card Header */
@@ -81,6 +83,7 @@
   margin: 0;
   font-size: 16px;
   font-weight: 600;
+  color: var(--text-primary);
 }
 
 .severity-badge {
@@ -93,18 +96,18 @@
 }
 
 .severity-badge.warning {
-  background-color: #fff3cd;
-  color: #856404;
+  background-color: rgba(245, 158, 11, 0.15);
+  color: var(--accent-yellow);
 }
 
 .severity-badge.critical {
-  background-color: #f8d7da;
-  color: #721c24;
+  background-color: rgba(239, 68, 68, 0.15);
+  color: var(--accent-red);
 }
 
 .alert-time {
   font-size: 13px;
-  color: #999;
+  color: var(--text-muted);
 }
 
 /* Card Body */
@@ -115,7 +118,7 @@
 .alert-message {
   margin: 0 0 8px 0;
   font-size: 15px;
-  color: #333;
+  color: var(--text-primary);
   line-height: 1.4;
 }
 
@@ -124,7 +127,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 8px;
-  background-color: rgba(0, 0, 0, 0.02);
+  background-color: var(--bg-base);
+  border: 1px solid var(--border);
   border-radius: 4px;
   font-size: 14px;
   margin-bottom: 8px;
@@ -132,22 +136,22 @@
 
 .metric-label {
   font-weight: 500;
-  color: #555;
+  color: var(--text-secondary);
 }
 
 .metric-value {
   font-family: 'Courier New', monospace;
-  color: #d32f2f;
+  color: var(--accent-red);
   font-weight: 600;
 }
 
 .alert-recommendation {
   padding: 8px 12px;
-  background-color: #f0f7ff;
-  border-left: 2px solid #2196f3;
+  background-color: rgba(59, 130, 246, 0.08);
+  border-left: 2px solid var(--accent-blue);
   border-radius: 4px;
   font-size: 13px;
-  color: #1565c0;
+  color: var(--accent-blue);
 }
 
 /* Card Footer */
@@ -156,36 +160,38 @@
   justify-content: space-between;
   align-items: center;
   padding-top: 12px;
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  border-top: 1px solid var(--border);
 }
 
 .alert-loco {
   font-size: 12px;
-  color: #999;
+  color: var(--text-muted);
 }
 
 /* Button */
 .btn-acknowledge {
-  padding: 6px 16px;
-  border: none;
-  border-radius: 4px;
-  background-color: #4caf50;
-  color: white;
-  font-size: 13px;
+  padding: 5px 14px;
+  border: 1.5px solid var(--accent-green);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--accent-green);
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .btn-acknowledge:hover:not(:disabled) {
-  background-color: #45a049;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  background: var(--accent-green);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.25);
 }
 
 .btn-acknowledge:disabled {
-  background-color: #ccc;
+  border-color: var(--border);
+  color: var(--text-muted);
   cursor: not-allowed;
-  opacity: 0.7;
+  opacity: 0.6;
 }
 
 /* Responsive */

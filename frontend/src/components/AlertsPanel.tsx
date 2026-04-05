@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import { useAlertsPolling } from '../hooks/useAlertsPolling';
 import type { Alert } from '../types/alerts';
+import './AlertsPanel.css';
 
 interface AlertsPanelProps {
   locomotiveId: string | null;
   pollingInterval?: number;
 }
 
+type AlertFilter = 'all' | 'warning' | 'critical';
+
 export const AlertsPanel = ({ locomotiveId, pollingInterval = 5000 }: AlertsPanelProps) => {
   const [acknowledging, setAcknowledging] = useState<Set<number>>(new Set());
+  const [filter, setFilter] = useState<AlertFilter>('all');
   const { active, loading, error, lastUpdated, acknowledgeAlert } = useAlertsPolling(
     locomotiveId,
     { interval: pollingInterval, timeout: 5000, maxRetries: 5 }
@@ -27,8 +31,14 @@ export const AlertsPanel = ({ locomotiveId, pollingInterval = 5000 }: AlertsPane
     }
   };
 
+  const filteredAlerts = active.filter((a) => {
+    if (filter === 'all') return true;
+    return a.severity === filter;
+  });
+
   const unacked = active.filter((a) => !a.acknowledged).length;
   const critical = active.filter((a) => a.severity === 'critical' && !a.acknowledged).length;
+  const warnings = active.filter((a) => a.severity === 'warning' && !a.acknowledged).length;
 
   return (
     <div className="alerts-panel">
@@ -57,14 +67,42 @@ export const AlertsPanel = ({ locomotiveId, pollingInterval = 5000 }: AlertsPane
         )}
       </div>
 
+      <div className="alerts-filters">
+        <button
+          className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
+          onClick={() => setFilter('all')}
+        >
+          Все
+          <span className="filter-badge">{active.length}</span>
+        </button>
+        <button
+          className={`filter-btn filter-btn--warning ${filter === 'warning' ? 'active' : ''}`}
+          onClick={() => setFilter('warning')}
+        >
+          <span className="filter-dot filter-dot--warning" />
+          Warn
+          <span className="filter-badge">{warnings}</span>
+        </button>
+        <button
+          className={`filter-btn filter-btn--critical ${filter === 'critical' ? 'active' : ''}`}
+          onClick={() => setFilter('critical')}
+        >
+          <span className="filter-dot filter-dot--critical" />
+          Crit
+          <span className="filter-badge">{critical}</span>
+        </button>
+      </div>
+
       {loading && active.length === 0 && <div className="alerts-loading">Загрузка...</div>}
       {error && <div className="alerts-error">Ошибка: {error}</div>}
-      {!loading && !error && active.length === 0 && (
-        <div className="alerts-empty">Нет активных алертов</div>
+      {!loading && !error && filteredAlerts.length === 0 && (
+        <div className="alerts-empty">
+          {active.length === 0 ? 'Нет активных алертов' : 'Нет алертов в этой категории'}
+        </div>
       )}
-      {active.length > 0 && (
+      {filteredAlerts.length > 0 && (
         <div className="alerts-list">
-          {active.map((alert) => (
+          {filteredAlerts.map((alert) => (
             <AlertRow
               key={alert.id}
               alert={alert}

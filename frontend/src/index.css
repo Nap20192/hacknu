@@ -1,8 +1,17 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html.light {
+  background: #ffffff;
+  color-scheme: light;
+}
+
+html.dark {
+  background: #0f172a;
+  color-scheme: dark;
+}
+
 body {
   margin: 0;
-  background: #0f172a;
   font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
